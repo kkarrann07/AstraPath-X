@@ -3,35 +3,40 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#090d19">
+  <meta name="theme-color" content="#070b14">
   <meta name="description" content="Plan and stress-test a solar rover mission on synthetic or uploaded elevation data.">
   <title>AstraPath-X | Rover Mission Control</title>
-  <link rel="stylesheet" href="/assets/style.css">
-  <script type="module" src="/assets/app.js"></script>
+  <link rel="stylesheet" href="assets/style.css">
+  <script type="module" src="assets/app.js"></script>
 </head>
 <body>
   <header class="topbar">
     <div class="topbar-inner">
       <div class="brand"><span class="brand-icon" aria-hidden="true">✦</span><span>AstraPath<span class="accent">-X</span><small>ROVER SURVIVAL INTELLIGENCE</small></span></div>
-      <div class="header-right"><a href="#settings">Mission parameters</a><span class="event">ASTRA 2026</span></div>
+      <nav class="header-right" aria-label="Mission navigation"><a href="#map-title">Terrain</a><a href="#decision-title">Simulation</a><a href="#settings">Parameters</a><span class="event">ASTRA 2026</span></nav>
     </div>
   </header>
   <main>
     <section class="hero">
-      <div>
-        <div class="eyebrow"><i class="dot"></i> MISSION PLANNING CONSOLE</div>
-        <h1>Rover Mission Control<span class="accent">.</span></h1>
+      <div class="hero-copy">
+        <h1>Rover Mission<br><span class="accent">Control</span></h1>
         <p>Don't just find a route. Make sure the rover survives the mission.</p>
+        <button class="button secondary" id="demo" type="button"><span aria-hidden="true">▷</span> Judge challenge</button>
       </div>
-      <div class="hero-actions">
-        <button class="button secondary" id="load-dem" type="button"><span aria-hidden="true">↥</span> Upload GeoTIFF</button>
-        <button class="button secondary" id="real-mode" type="button">Real ISRO Dataset Mode</button>
-        <button class="button primary" id="demo" type="button"><span aria-hidden="true">✧</span> Judge challenge</button>
+      <div class="data-console" aria-labelledby="data-title">
+        <div class="data-console-heading"><span class="section-icon" aria-hidden="true">⊞</span><h2 id="data-title">Terrain data</h2></div>
+        <button class="data-option" id="load-dem" type="button" aria-labelledby="upload-option-title" aria-describedby="upload-option-detail">
+          <span><strong id="upload-option-title">Upload GeoTIFF</strong><small id="upload-option-detail">Single-band elevation raster for any location</small></span><span aria-hidden="true">＋</span>
+        </button>
+        <button class="data-option" id="real-mode" type="button" aria-labelledby="study-option-title" aria-describedby="study-option-detail">
+          <span><strong id="study-option-title">Real ISRO Dataset Mode</strong><small id="study-option-detail">Tso Kar CartoDEM tiles and optional 2025 imagery</small></span><span aria-hidden="true">＋</span>
+        </button>
+        <p id="data-status" role="status">Checking for installed Tso Kar terrain…</p>
       </div>
     </section>
     <section class="summary" aria-label="Mission overview">
       <div><span class="summary-icon">◈</span><div><span>ACTIVE TERRAIN</span><strong id="active-terrain">Loading terrain</strong><small id="terrain-origin"></small></div></div>
-      <div><span class="summary-icon cyan">ϟ</span><div><span>ROVER BATTERY</span><strong id="battery-top">—</strong><small id="battery-detail"></small></div></div>
+      <div><span class="summary-icon cyan">ϟ</span><div><span>ROVER BATTERY</span><strong id="battery-top">—</strong><small id="battery-detail"></small><div class="battery-meter" aria-hidden="true"><i id="battery-meter-fill"></i></div></div></div>
       <div><span class="summary-icon amber">◉</span><div><span>SUN ALTITUDE</span><strong id="sun-top">—</strong><small id="sun-detail"></small></div></div>
       <div><span class="summary-icon green">◎</span><div><span>MISSION STATUS</span><strong id="status-top" data-status="READY">READY</strong><small id="status-detail">Awaiting mission plan</small></div></div>
     </section>
@@ -51,6 +56,8 @@
         </div>
         <div class="map-wrap">
           <canvas id="map" role="img" aria-label="Elevation map showing routes, rover, base, target and point of no return"></canvas>
+          <i class="map-corner top-left" aria-hidden="true"></i><i class="map-corner top-right" aria-hidden="true"></i>
+          <i class="map-corner bottom-left" aria-hidden="true"></i><i class="map-corner bottom-right" aria-hidden="true"></i>
           <div class="map-top"><span class="map-chip"><b></b><span id="map-source">SYNTHETIC ELEVATION</span></span><span class="compass" aria-label="North">▲<small>N</small></span></div>
           <div class="map-bottom"><span class="map-chip" id="scale"></span><span class="map-chip" id="map-coordinate">Select a map cell</span></div>
         </div>
@@ -120,39 +127,83 @@
     </section>
     <footer><span><strong>AstraPath-X</strong> / ASTRA 2026</span><span>Synthetic terrain by default. Uploaded provenance is user supplied. Analysis is illustrative. <a href="https://bhuvan-app3.nrsc.gov.in/data/download/" target="_blank" rel="noopener">ISRO / NRSC Bhuvan CartoDEM</a></span></footer>
   </main>
-  <dialog id="upload-dialog">
+  <dialog id="upload-dialog" aria-labelledby="upload-title">
     <form id="upload-form">
-      <h2>Load elevation data</h2><p>Select a single-band, georeferenced GeoTIFF with elevations in metres. The app uses a native-resolution window around the selected position.</p>
-      <label>GeoTIFF <input type="file" name="file" accept=".tif,.tiff,image/tiff" required></label>
-      <div class="upload-coordinates"><label>Window X (%) <input type="number" name="x" min="0" max="100" value="50" required></label><label>Window Y (%) <input type="number" name="y" min="0" max="100" value="50" required></label></div>
-      <p id="upload-feedback" role="status">Maximum file size 32 MiB. X runs left to right, Y top to bottom.</p>
+      <h2 id="upload-title">Upload elevation</h2><p>Use a single-band, georeferenced elevation GeoTIFF in metres, up to 32 MiB.</p>
+      <label class="file-box">Elevation GeoTIFF <input type="file" name="file" accept=".tif,.tiff,image/tiff" required></label>
+      <details><summary>Adjust routing window</summary>
+        <p>The app starts in the centre. X runs left to right and Y runs top to bottom.</p>
+        <div class="upload-coordinates"><label>Window X (%) <input type="number" name="x" min="0" max="100" value="50" required></label><label>Window Y (%) <input type="number" name="y" min="0" max="100" value="50" required></label></div>
+      </details>
+      <p id="upload-feedback" role="status"></p>
       <div class="upload-buttons"><button class="button secondary" id="cancel-upload" type="button">Cancel</button><button class="button primary" type="submit">Load terrain</button></div>
     </form>
   </dialog>
-  <dialog id="study-dialog">
+  <dialog id="study-dialog" aria-labelledby="study-title">
     <form id="study-form">
-      <h2>Real ISRO Dataset Mode</h2>
-      <p>Tso Kar Valley, Ladakh. The 30 m routing grid uses the CartoDEM you provide. Optional 2025 imagery is a visual overlay. Power and sunlight are modeled.</p>
+      <h2 id="study-title">Load Tso Kar data</h2>
+      <p>Bring your own Bhoonidhi or Bhuvan download. CartoDEM drives routing. Optional 2025 imagery appears as a map layer. <a href="tso-kar-guide" target="_blank" rel="noopener">Download and import guide</a></p>
       <p id="study-availability" role="status">Checking for a prepared study…</p>
-      <details>
-        <summary>Import official downloads</summary>
-        <div class="study-files">
-          <label>Import metadata JSON <input type="file" name="spec" accept=".json,application/json"></label>
-          <label>CartoDEM and optional 2025 imagery files <input type="file" name="files" multiple></label>
-          <p>Include TIFFs or ZIPs and any referenced metadata files. Browser imports are limited to 96 MiB and persist for this server session. Use the <a href="/tso-kar-guide" target="_blank" rel="noopener">Tso Kar guide and local importer</a> for larger products.</p>
+      <div class="segments import-mode" aria-label="Import method">
+        <button type="button" data-import-mode="guided" aria-pressed="true">Guided import</button>
+        <button type="button" data-import-mode="manifest" aria-pressed="false">Use JSON manifest</button>
+      </div>
+      <fieldset id="guided-import" class="import-fields">
+        <div id="dem-tiles"></div>
+        <button class="button secondary" id="add-tile" type="button">Add another tile</button>
+        <details id="optical-import"><summary>Attach 2025 imagery</summary>
+          <div class="study-fields">
+            <label class="file-box">Optical ZIP or RGB GeoTIFF <input type="file" name="scene" accept=".zip,.tif,.tiff"></label>
+            <div class="upload-coordinates">
+              <label>Product ID <input name="scene_id" maxlength="200"></label>
+              <label>Processing version <input name="scene_version" maxlength="120"></label>
+              <label>Satellite family <select name="scene_family"><option value="resourcesat">Resourcesat</option><option value="sentinel-2">Sentinel-2</option></select></label>
+              <label>Acquisition date <input type="date" name="scene_date" min="2025-01-01" max="2025-12-31"></label>
+            </div>
+            <label>License or terms reference <input name="scene_license" maxlength="1000"></label>
+          </div>
+        </details>
+      </fieldset>
+      <fieldset id="manifest-import" class="import-fields" hidden disabled>
+        <label class="file-box">Import metadata JSON <input type="file" name="spec" accept=".json,application/json"></label>
+        <label class="file-box">Every file referenced by the manifest <input type="file" name="files" multiple></label>
+        <p>Use this option to select specific archive members, specify band order, or retain separate catalogue metadata files.</p>
+      </fieldset>
+      <details id="study-window"><summary>Adjust routing window</summary>
+        <p>X increases east and Y increases south. Move the window if your tiles cover only part of the study area.</p>
+        <div class="upload-coordinates">
+          <label>Routing window X (%) <input type="number" name="x" min="0" max="100" step="any" value="50" required></label>
+          <label>Routing window Y (%) <input type="number" name="y" min="0" max="100" step="any" value="50" required></label>
         </div>
       </details>
-      <div class="upload-coordinates">
-        <label>Routing window X (%) <input type="number" name="x" min="0" max="100" value="50" required></label>
-        <label>Routing window Y (%) <input type="number" name="y" min="0" max="100" value="50" required></label>
-      </div>
+      <label class="check" id="study-save-option" hidden><input type="checkbox" name="save_local"> Save as startup terrain on this computer</label>
+      <p>Browser imports support up to 96 MiB per request. Session-only imports expire when the server restarts.</p>
       <p id="study-feedback" role="status"></p>
       <div class="upload-buttons">
         <button class="button secondary" id="study-cancel" type="button">Close</button>
-        <button class="button secondary" id="study-load" type="button" disabled>Load window</button>
-        <button class="button primary" type="submit">Import and load</button>
+        <button class="button secondary" id="study-load" type="button" disabled>Load existing window</button>
+        <button class="button primary" type="submit" formnovalidate>Import and load</button>
       </div>
     </form>
   </dialog>
+  <template id="dem-tile-template">
+    <section class="import-tile">
+      <div class="tile-heading"><h3>CartoDEM tile</h3><button class="button secondary mini remove-tile" type="button">Remove</button></div>
+      <label class="file-box">Elevation TIFF or ZIP <input type="file" data-field="file" accept=".tif,.tiff,.zip" required></label>
+      <div class="upload-coordinates">
+        <label>Product ID <input data-field="product_id" maxlength="200" required></label>
+        <label>Product version <input data-field="version" maxlength="120" required></label>
+        <label>Catalogue <select data-field="catalogue"><option>Bhoonidhi</option><option>Bhuvan</option></select></label>
+        <label>Acquisition date (if known) <input type="date" data-field="acquired"></label>
+      </div>
+      <label>License or terms reference <input data-field="license" maxlength="1000" required></label>
+      <details><summary>Other tile metadata</summary>
+        <div class="study-fields">
+          <label>Acquisition range or note <input data-field="acquisition_note" maxlength="1000"></label>
+          <label>NoData value (if documented) <input type="number" step="any" data-field="nodata"></label>
+        </div>
+      </details>
+    </section>
+  </template>
 </body>
 </html>

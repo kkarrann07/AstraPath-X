@@ -32,6 +32,8 @@ BHUVAN = "https://bhuvan-app3.nrsc.gov.in/data/download/"
 RASTER_SUFFIXES = {".tif", ".tiff", ".jp2"}
 MAX_MEMBER_BYTES = 1024**3
 HAZARD_SLOPE = 19
+WINDOW_MAX_WIDTH = 105
+WINDOW_MAX_HEIGHT = 85
 ACQUISITION_KEYS = r"DATATAKE_SENSING_START|SENSING_TIME|ACQUISITION[ _]?DATE|DATE[ _]?OF[ _]?PASS"
 
 
@@ -176,6 +178,18 @@ def study_grid():
     polygon = transform_geom("EPSG:4326", CRS, {"type": "Polygon", "coordinates": [ring]})
     inside = geometry_mask([polygon], shape, affine, invert=True)
     return affine, shape, inside
+
+
+def recommended_window(valid):
+    """Find a well-covered routing window, favouring the middle of the study."""
+    rows, cols = valid.shape
+    height, width = min(WINDOW_MAX_HEIGHT, rows), min(WINDOW_MAX_WIDTH, cols)
+    summed = np.pad(valid, ((1, 0), (1, 0))).cumsum(0).cumsum(1)
+    counts = summed[height:, width:] - summed[height:, :-width] - summed[:-height, width:] + summed[:-height, :-width]
+    row_mid, col_mid = (rows - height) / 2, (cols - width) / 2
+    candidates = np.argwhere(counts >= counts.max() * 0.98)
+    row, col = candidates[np.argmin(np.sum((candidates - (row_mid, col_mid)) ** 2, axis=1))]
+    return [float(col / col_mid * 50) if col_mid else 50, float(row / row_mid * 50) if row_mid else 50]
 
 
 def raster_info(src, name, path):
@@ -382,6 +396,7 @@ def prepare_study(spec, input_dir, output):
             "source_status": "Catalogue provenance supplied by importer. Geospatial checks completed.",
             "study_bbox_wgs84": AOI, "crs": CRS, "posting_metres": POSTING, "shape": shape,
             "grid_transform": tuple(affine)[:6],
+            "startup_window": recommended_window(valid),
             "valid_coverage_fraction": float(np.count_nonzero(valid) / np.count_nonzero(inside)),
             "elevation_range_m": [float(np.nanmin(elevation)), float(np.nanmax(elevation))],
             "hazard_slope_degrees": HAZARD_SLOPE,
@@ -394,14 +409,20 @@ def prepare_study(spec, input_dir, output):
     return manifest
 
 
-def load_window(directory, x=50, y=50, manifest=None):
+def load_window(directory, x=50, y=50, manifest=None, return_center=False):
     if manifest is None:
         manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
     with rasterio.open(directory / "elevation.tif") as src:
         if (src.crs is None or src.crs.to_string() != CRS or src.shape != tuple(manifest["shape"])
                 or tuple(src.transform)[:6] != tuple(manifest["grid_transform"]) or src.units != ("m",)):
             raise ValueError("Processed elevation does not match the study grid manifest.")
-        width, height = min(105, src.width), min(85, src.height)
+        if x is None or y is None:
+            suggested = manifest.get("startup_window")
+            if suggested is None:
+                suggested = recommended_window(np.isfinite(src.read(1, masked=True).filled(np.nan)))
+            x = suggested[0] if x is None else x
+            y = suggested[1] if y is None else y
+        width, height = min(WINDOW_MAX_WIDTH, src.width), min(WINDOW_MAX_HEIGHT, src.height)
         window = Window(round((src.width - width) * x / 100), round((src.height - height) * y / 100), width, height)
         elevation = src.read(1, window=window, masked=True).filled(np.nan)
         if not np.any(np.isfinite(slope_map(Terrain(elevation, POSTING, POSTING, "", "", "")))):
@@ -418,7 +439,7 @@ def load_window(directory, x=50, y=50, manifest=None):
             rgb = image.read(window=window)
     terrain = Terrain(elevation, POSTING, POSTING, manifest["name"], "Declared CartoDEM source",
                       f"30 m analysis grid · {lat[0]:.5f}°, {lon[0]:.5f}° center")
-    return terrain, rgb
+    return (terrain, rgb, (x, y)) if return_center else (terrain, rgb)
 
 
 def main():

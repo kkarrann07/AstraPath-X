@@ -27,6 +27,8 @@ const parameters = {
 };
 let settings = { ...defaultSettings };
 let terrain, plan, scores, selected, flight, guidance, fit, raster, study;
+let installedStudy = false;
+let startupDataError = "";
 let layer = "solar";
 let picker, timer, operation = 0, busy = false, stoppedAtPnr = false;
 
@@ -46,7 +48,7 @@ function fillParameters() {
 }
 
 async function api(url, options) {
-  const response = await fetch(url, options);
+  const response = await fetch(url.replace(/^\//, ""), options);
   const data = await response.json();
   if (!response.ok) {
     throw new Error(typeof data.detail === "string" ? data.detail : "Check the mission parameters and coordinates.");
@@ -125,6 +127,12 @@ function summary() {
   const percent = Math.round(battery / settings.capacity * 100);
   byId("active-terrain").textContent = terrain.name;
   byId("terrain-origin").textContent = terrain.origin;
+  byId("data-status").textContent = terrain.study
+    ? (terrain.study.id === "installed" ? "Installed Tso Kar terrain active." : "Imported Tso Kar terrain active for this session.")
+    : terrain.id === "demo"
+      ? startupDataError || (installedStudy ? "Synthetic demo active. Installed Tso Kar terrain is available."
+        : "No Tso Kar dataset installed. Synthetic demo active.")
+      : "Uploaded GeoTIFF active for this session.";
   byId("terrain-detail").textContent = terrain.detail;
   byId("map-source").textContent = terrain.study ? "TSO KAR · UPLOADED ELEVATION"
     : terrain.id === "demo" ? "SYNTHETIC ELEVATION" : "UPLOADED ELEVATION";
@@ -137,10 +145,13 @@ function summary() {
     const image = terrain.study.imagery
       ? `${terrain.study.imagery.display} acquired ${terrain.study.imagery.acquired}` : "No 2025 imagery loaded";
     byId("study-provenance").textContent = `Declared CartoDEM provenance · ${products} · ${coverage} · ${image}`;
-    byId("study-manifest").href = `/api/tsokar/${terrain.study.id}/manifest`;
+    byId("study-manifest").href = `api/tsokar/${terrain.study.id}/manifest`;
   }
   byId("battery-top").textContent = `${percent}%`;
   byId("battery-detail").textContent = `${battery.toFixed(1)} / ${settings.capacity} Wh`;
+  const meter = byId("battery-meter-fill");
+  meter.style.width = `${percent}%`;
+  meter.classList.toggle("low", battery < (plan?.floor ?? settings.reserve));
   byId("sun-top").textContent = `${settings.altitude}°`;
   byId("sun-detail").textContent = `Azimuth ${settings.azimuth}° · Solar ${settings.solar ? "on" : "off"}`;
   const status = busy ? "PLANNING" : guidance?.status || (flight?.index ? "CONTINUE" : flight ? "READY" : "BLOCKED");
@@ -355,6 +366,10 @@ byId("upload-form").addEventListener("submit", async (event) => {
   const submit = form.querySelector("[type=submit]");
   const feedback = byId("upload-feedback");
   const file = form.elements.file.files[0];
+  if (file.size > 32 * 1024 * 1024) {
+    feedback.textContent = "This file exceeds 32 MiB. Crop or compress it before uploading.";
+    return;
+  }
   const query = new URLSearchParams({ name: file.name.slice(0, 100), x: form.elements.x.value, y: form.elements.y.value });
   submit.disabled = true;
   feedback.textContent = "Reading elevations and projecting to metres…";
@@ -363,7 +378,7 @@ byId("upload-form").addEventListener("submit", async (event) => {
     changeLayer("solar");
     dialog.close();
     form.elements.file.value = "";
-    feedback.textContent = "Maximum file size 32 MiB. X runs left to right, Y top to bottom.";
+    feedback.textContent = "";
     setPoints();
     choosePicker(undefined);
     calculate();
@@ -378,7 +393,49 @@ const studyDialog = byId("study-dialog");
 const studyForm = byId("study-form");
 const studyFeedback = byId("study-feedback");
 const studyLoad = byId("study-load");
+const tileList = byId("dem-tiles");
+const addTile = byId("add-tile");
 let studyBusy = false;
+let importMode = "guided";
+
+function refreshTiles() {
+  const tiles = [...tileList.children];
+  tiles.forEach((tile, index) => {
+    tile.querySelector("h3").textContent = `CartoDEM tile ${index + 1}`;
+    const remove = tile.querySelector(".remove-tile");
+    remove.hidden = tiles.length === 1;
+    remove.setAttribute("aria-label", `Remove CartoDEM tile ${index + 1}`);
+  });
+  addTile.disabled = tiles.length >= 8;
+}
+
+function appendTile() {
+  const tile = byId("dem-tile-template").content.firstElementChild.cloneNode(true);
+  tile.querySelector(".remove-tile").addEventListener("click", () => {
+    const next = tile.nextElementSibling || tile.previousElementSibling;
+    tile.remove();
+    refreshTiles();
+    next.querySelector('input[type="file"]').focus();
+  });
+  tileList.append(tile);
+  refreshTiles();
+  return tile;
+}
+
+appendTile();
+addTile.addEventListener("click", () => appendTile().querySelector('input[type="file"]').focus());
+
+for (const button of studyForm.querySelectorAll("[data-import-mode]")) {
+  button.addEventListener("click", () => {
+    importMode = button.dataset.importMode;
+    for (const field of ["guided", "manifest"]) {
+      const fieldset = byId(`${field}-import`);
+      fieldset.hidden = fieldset.disabled = field !== importMode;
+      studyForm.querySelector(`[data-import-mode="${field}"]`).setAttribute("aria-pressed", String(field === importMode));
+    }
+    studyFeedback.textContent = "";
+  });
+}
 
 function studyAvailability(message) {
   byId("study-availability").textContent = message || (study?.id
@@ -387,6 +444,8 @@ function studyAvailability(message) {
   studyLoad.disabled = studyBusy || !study?.id;
   studyForm.querySelector('[type="submit"]').disabled = studyBusy;
   byId("study-cancel").disabled = studyBusy;
+  byId("study-save-option").hidden = !study?.can_save_locally;
+  studyForm.elements.save_local.disabled = studyBusy || !study?.can_save_locally;
 }
 
 byId("real-mode").addEventListener("click", async () => {
@@ -407,9 +466,13 @@ byId("real-mode").addEventListener("click", async () => {
 byId("study-cancel").addEventListener("click", () => studyDialog.close());
 studyDialog.addEventListener("cancel", (event) => { if (studyBusy) event.preventDefault(); });
 
-async function loadStudyWindow() {
-  const query = new URLSearchParams({ x: studyForm.elements.x.value, y: studyForm.elements.y.value });
-  terrain = await api(`/api/tsokar/${study.id}/window?${query}`);
+async function loadStudyWindow(automatic = false) {
+  const query = automatic ? "" : `?${new URLSearchParams({ x: studyForm.elements.x.value, y: studyForm.elements.y.value })}`;
+  terrain = await api(`/api/tsokar/${study.id}/window${query}`);
+  if (terrain.window) {
+    studyForm.elements.x.value = terrain.window.x.toFixed(2);
+    studyForm.elements.y.value = terrain.window.y.toFixed(2);
+  }
   changeLayer(terrain.imagery ? "imagery" : "solar");
   setPoints();
   choosePicker(undefined);
@@ -418,7 +481,14 @@ async function loadStudyWindow() {
 }
 
 async function runStudyAction(action, progress) {
-  if (studyBusy || !studyForm.reportValidity()) return;
+  if (studyBusy) return;
+  for (const axis of [studyForm.elements.x, studyForm.elements.y]) {
+    if (!axis.validity.valid) {
+      byId("study-window").open = true;
+      axis.reportValidity();
+      return;
+    }
+  }
   studyBusy = true;
   studyAvailability();
   studyFeedback.textContent = progress;
@@ -432,23 +502,76 @@ async function runStudyAction(action, progress) {
   }
 }
 
-studyLoad.addEventListener("click", () => runStudyAction(loadStudyWindow, "Loading the aligned routing grid…"));
+studyLoad.addEventListener("click", () => runStudyAction(
+  () => loadStudyWindow(!byId("study-window").open), "Loading the aligned routing grid…",
+));
+
+function guidedStudy() {
+  const files = [];
+  const dem = [...tileList.children].map((tile) => {
+    const values = {};
+    for (const field of tile.querySelectorAll("[data-field]")) {
+      if (!field.validity.valid) {
+        const details = field.closest("details");
+        if (details) details.open = true;
+        field.reportValidity();
+        throw new Error("Complete the highlighted CartoDEM field.");
+      }
+      if (field.type === "file") {
+        files.push(field.files[0]);
+        values.file = field.files[0].name;
+      } else if (field.value.trim()) {
+        values[field.dataset.field] = field.type === "number" ? field.valueAsNumber : field.value.trim();
+      }
+    }
+    return values;
+  });
+  let imagery = null;
+  const scene = studyForm.elements.scene.files[0];
+  if (scene) {
+    const value = (name) => studyForm.elements[`scene_${name}`].value.trim();
+    const date = studyForm.elements.scene_date;
+    if (!value("id") || !value("version") || !value("license") || !date.value || !date.validity.valid) {
+      byId("optical-import").open = true;
+      throw new Error("Enter the optical product ID, version, license and a valid 2025 acquisition date.");
+    }
+    imagery = {
+      file: scene.name, product_id: value("id"), version: value("version"), license: value("license"),
+      family: value("family"), acquired: date.value,
+    };
+    files.push(scene);
+  }
+  return { spec: JSON.stringify({ dem, imagery }), files };
+}
+
+async function manifestStudy() {
+  const manifest = studyForm.elements.spec.files[0];
+  const files = [...studyForm.elements.files.files];
+  if (!manifest || !files.length) throw new Error("Select the JSON manifest and all of its referenced files.");
+  return { spec: await manifest.text(), files };
+}
+
 studyForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  const manifest = studyForm.elements.spec.files[0];
-  const files = studyForm.elements.files.files;
-  if (!manifest || !files.length) {
-    studyFeedback.textContent = "Select the metadata JSON and the original files listed in it.";
-    return;
-  }
+  const saveLocally = study?.can_save_locally && studyForm.elements.save_local.checked;
   runStudyAction(async () => {
+    const { spec, files } = await (importMode === "guided" ? guidedStudy() : manifestStudy());
+    if (files.reduce((sum, file) => sum + file.size, 0) >= 96 * 1024 * 1024) {
+      throw new Error("These files exceed the browser limit. Use the local importer for larger downloads.");
+    }
     const body = new FormData();
-    body.append("spec", await manifest.text());
+    body.append("spec", spec);
     for (const file of files) body.append("files", file);
-    study = await api("/api/tsokar/import", { method: "POST", body });
-    studyForm.elements.spec.value = "";
-    studyForm.elements.files.value = "";
-    await loadStudyWindow();
+    study = await api(`/api/tsokar/import${saveLocally ? "?save_local=true" : ""}`, { method: "POST", body });
+    if (saveLocally) installedStudy = true;
+    const { x, y } = studyForm.elements;
+    const [windowX, windowY] = [x.value, y.value];
+    studyForm.reset();
+    x.value = windowX;
+    y.value = windowY;
+    tileList.replaceChildren();
+    appendTile();
+    await loadStudyWindow(!byId("study-window").open);
   }, "Validating source metadata and aligning rasters…");
 });
 
@@ -737,4 +860,19 @@ function drawTimeline() {
 new ResizeObserver(() => { drawMap(); drawTimeline(); }).observe(map);
 new ResizeObserver(drawTimeline).observe(timeline);
 fillParameters();
-loadDemo(false);
+
+async function startDashboard() {
+  try {
+    study = await api("/api/tsokar");
+    if (study.id) {
+      installedStudy = true;
+      await loadStudyWindow(true);
+      return;
+    }
+  } catch (error) {
+    startupDataError = `Tso Kar terrain could not load. Synthetic demo active. ${error.message}`;
+  }
+  await loadDemo(false);
+}
+
+startDashboard();

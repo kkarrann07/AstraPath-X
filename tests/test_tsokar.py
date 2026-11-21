@@ -222,3 +222,31 @@ def test_uploaded_mode_routes_use_dem_and_imagery_is_only_visual(products, monke
     decision = client.post("/api/emergency", json={**payload, "terrain": flat_window["id"],
                                                    "position": [row, 26], "battery": 0}).json()
     assert decision["status"] == "STOP/HOLD"
+
+
+def test_local_save_preserves_original_and_loads_partial_study_automatically(products, monkeypatch):
+    spec, folder, _ = products
+    original = (folder / "west.tif").read_bytes()
+    installed = folder / "startup"
+    monkeypatch.setenv("ASTRAPATH_TSOKAR_DIR", str(installed))
+    monkeypatch.setenv("ASTRAPATH_SAVE_LOCAL", "1")
+    home = "http://127.0.0.1:8765"
+    client = TestClient(app, base_url=home)
+    single_tile = spec.model_copy(update={"dem": [spec.dem[0].model_copy(update={"metadata_files": []})],
+                                          "imagery": None})
+    payload = {"data": {"spec": single_tile.model_dump_json()}, "files": [("files", ("west.tif", original))]}
+    endpoint = "/api/tsokar/import?save_local=true"
+    assert client.get("/api/tsokar").json()["can_save_locally"]
+    assert client.post(endpoint, headers={"origin": "https://other.example"}, **payload).status_code == 403
+    saved = client.post(endpoint, headers={"origin": home}, **payload)
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["id"] == "installed"
+    assert (installed / "raw" / "dem-1" / "package-west.tif").read_bytes() == original
+    restarted = TestClient(app, base_url=home)
+    assert restarted.get("/api/tsokar").json()["id"] == "installed"
+    # A coordinate-free request selects coverage instead of assuming the centre is fully covered.
+    window = restarted.get("/api/tsokar/installed/window").json()
+    assert window["window"]["x"] < 50
+    assert window["study"]["coverage"] < .6
+    assert window["origin"] == "Declared CartoDEM source"
+    assert restarted.post(endpoint, headers={"origin": home}, **payload).status_code == 409

@@ -22,11 +22,13 @@ The rectangle spans 78°E. For a catalogue offering 1° chips, check both cells 
 
 ## Prepare downloaded data
 
-Place original downloads and accompanying product metadata together in a local directory. Copy `tsokar-import.example.json` beside the downloads, rename it `tsokar-import.json`, and replace all examples with the exact values from the records. Add one `dem` entry per tile. Remove the optional `imagery` entry until you have an eligible scene. Include documented `nodata` overrides only when necessary. ZIP input preserves the archive and records metadata filenames inside it. Standalone metadata files referenced in `metadata_files` are copied and hashed.
+For ordinary TIFFs and unambiguous ZIPs, open **Terrain data → Real ISRO Dataset Mode → Guided import**. Select the first CartoDEM file and enter its product ID, version, and license or terms reference from the catalogue. Enter the acquisition date if known and use **Add another tile** for each additional file. To add a qualifying optical scene, open **Attach 2025 imagery** and fill in the scene metadata. When using the Windows launcher, check **Save as startup terrain on this computer** if you want to keep the first study and load it automatically after restart. Select **Import and load**.
+
+For specific ZIP members, explicit band order, or separate catalogue metadata files, choose **Use JSON manifest**. Place the original downloads and accompanying metadata together, copy `tsokar-import.example.json` beside them, and replace the examples with the catalogue values. Add one `dem` entry per tile. Leave `imagery` null until you have an eligible scene. Include documented `nodata` overrides only when necessary. ZIP input preserves the archive and records metadata filenames inside it. Standalone metadata files referenced in `metadata_files` are copied and hashed.
 
 - For a ZIP with multiple elevation rasters, specify the exact GeoTIFF member path and use one source record per tile. For ambiguous imagery archives, specify a single georeferenced RGB member or three single-band member paths in display order. Use forward slashes and names exactly as shown in the ZIP.
 - Sentinel-2 SAFE inputs can use B04, B03 and B02 JP2 files. The importer prefers matching 10 m members. Resourcesat LISS-3 does not provide a blue band. Map B4, B3 and B2 to displayed red, green and blue for a false-color composite. If GeoTIFFs arrive as separate files, put the three originals and metadata into a ZIP, or select the correct bands in a georeferenced multiband TIFF. For a multiband TIFF with no RGB designation, set `bands` to three 1-based display indexes. Keep the source files unchanged.
-- For browser import, open **Real ISRO Dataset Mode → Import official downloads** and select the JSON plus every referenced file. The server keeps up to three browser study sessions while it runs. Browser uploads have a 96 MiB combined request limit. For large Sentinel archives, or to preserve the study across restarts, use the local importer.
+- In **Use JSON manifest**, select the JSON plus every referenced file. The server keeps up to three browser study sessions while it runs. Browser uploads have a 96 MiB combined request limit. For large Sentinel archives, or to preserve the study across restarts, use the local importer.
 
 When you have a qualifying scene, replace `"imagery": null` in the example JSON with a record using the following structure. The example identifiers and date are placeholders.
 
@@ -49,7 +51,7 @@ From the repository root, run the importer using the environment with AstraPath-
 python -m astrapath.tsokar path\to\tsokar-import.json --output data\tsokar
 ```
 
-Use a new output directory when revising a study, and point `ASTRAPATH_TSOKAR_DIR` at that directory before launching the dashboard. The default location is `data/tsokar`. Open **Real ISRO Dataset Mode → Load window**. X increases east; Y increases south. The displayed routing window is at most 105 × 85 cells at 30 m posting. For a partial import, change X/Y to a window with data. The app reports valid DEM coverage for the study rectangle and blocks NoData on the routing window.
+Use a new output directory when revising a study, and point `ASTRAPATH_TSOKAR_DIR` at that directory before launching the dashboard. The default location is `data/tsokar`. Open **Real ISRO Dataset Mode → Load existing window**. X increases east and Y increases south. The displayed routing window is at most 105 × 85 cells at 30 m posting. For a partial import, change X/Y to a window with data. The app reports valid DEM coverage for the study rectangle and blocks NoData on the routing window.
 
 ## Outputs and scientific scope
 

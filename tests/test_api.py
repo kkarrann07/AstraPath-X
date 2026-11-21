@@ -26,7 +26,9 @@ def fixture_tiff(crs, affine, z, nodata=-9999, scale=1, offset=0):
 def test_live_entry_points_and_judge_replanning():
     assert "Rover Mission Control" in client.get("/").text
     assert client.get("/assets/app.js").status_code == 200
-    assert client.get("/health").json() == {"status": "ok"}
+    health = client.get("/health")
+    assert health.json() == {"status": "ok"}
+    assert len(health.headers["X-AstraPath-Workspace"]) == 64
     terrain = client.get("/api/terrain/demo").json()
     assert terrain["origin"] == "Synthetic demo" and terrain["elevation"][55][11] is None
     result = client.post("/api/plan", json=DEFAULT).json()

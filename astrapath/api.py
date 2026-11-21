@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from functools import lru_cache
+from hashlib import sha256
 import json
 import os
 from pathlib import Path
@@ -10,7 +11,7 @@ from typing import Annotated
 from uuid import uuid4
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -25,6 +26,7 @@ from .tsokar import AOI, ImportSpec, load_window, prepare_study
 
 app = FastAPI(title="AstraPath-X", version="1.0.0")
 STATIC = Path(__file__).resolve().parent.parent / "static"
+WORKSPACE_ID = sha256(os.path.normcase(str(STATIC.parent)).encode()).hexdigest()
 app.mount("/assets", StaticFiles(directory=STATIC), name="assets")
 
 DEMO = demo_terrain()
@@ -119,7 +121,8 @@ def index():
 
 
 @app.get("/health")
-def health():
+def health(response: Response):
+    response.headers["X-AstraPath-Workspace"] = WORKSPACE_ID
     return {"status": "ok"}
 
 
@@ -163,10 +166,15 @@ def installed_study():
     return Path(os.environ.get("ASTRAPATH_TSOKAR_DIR", STATIC.parent / "data" / "tsokar"))
 
 
+def can_save_locally():
+    return os.environ.get("ASTRAPATH_SAVE_LOCAL") == "1" and not installed_study().exists()
+
+
 def study_summary(study_id, manifest):
     return {
         "id": study_id, "name": manifest["name"], "bbox": manifest["study_bbox_wgs84"],
         "coverage": manifest["valid_coverage_fraction"], "posting": manifest["posting_metres"],
+        "can_save_locally": can_save_locally(),
         "dem": [{key: item[key] for key in ("product_id", "version", "acquired")} for item in manifest["dem"]],
         "imagery": ({key: manifest["imagery"][key] for key in ("product_id", "acquired", "display")}
                     if manifest["imagery"] else None),
@@ -177,16 +185,22 @@ def study_summary(study_id, manifest):
 def tsokar_status():
     path = installed_study() / "manifest.json"
     if not path.is_file():
-        return {"id": None, "name": "Tso Kar Valley, Ladakh", "bbox": AOI}
-    return study_summary("installed", json.loads(path.read_text(encoding="utf-8")))
+        return {"id": None, "name": "Tso Kar Valley, Ladakh", "bbox": AOI,
+                "can_save_locally": can_save_locally()}
+    try:
+        return study_summary("installed", json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(422, "The installed Tso Kar manifest is unreadable or incomplete.") from exc
 
 
-def import_study(spec, files):
+def import_study(spec, files, save_local=False):
     with import_lock:
+        if save_local and not can_save_locally():
+            raise HTTPException(409, "The local study directory already exists or saving is disabled.")
         session = TemporaryDirectory(prefix="astrapath-study-")
         try:
             root = Path(session.name)
-            directory = root / "study"
+            directory = installed_study() if save_local else root / "study"
             with TemporaryDirectory(dir=root) as upload_dir:
                 incoming = Path(upload_dir)
                 for file in files:
@@ -196,6 +210,9 @@ def import_study(spec, files):
                     with (incoming / name).open("xb") as output:
                         shutil.copyfileobj(file.file, output, 1024 * 1024)
                 manifest = prepare_study(spec, incoming, directory)
+            if save_local:
+                session.cleanup()
+                return study_summary("installed", manifest)
             study_id = uuid4().hex
             with study_lock:
                 studies[study_id] = (session, directory, manifest)
@@ -209,7 +226,11 @@ def import_study(spec, files):
 
 
 @app.post("/api/tsokar/import")
-async def tsokar_import(request: Request):
+async def tsokar_import(request: Request, save_local: bool = False):
+    if save_local and (os.environ.get("ASTRAPATH_SAVE_LOCAL") != "1"
+                       or request.url.hostname not in {"127.0.0.1", "localhost"}
+                       or request.headers.get("origin") != f"http://{request.url.netloc}"):
+        raise HTTPException(403, "Save as startup terrain is available from the local Windows launcher.")
     length = request.headers.get("content-length", "")
     if not length.isdigit():
         raise HTTPException(411, "A file upload must include its content length.")
@@ -224,7 +245,7 @@ async def tsokar_import(request: Request):
             spec = ImportSpec.model_validate_json(metadata.lstrip("\ufeff"))
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
-        return await run_in_threadpool(import_study, spec, files)
+        return await run_in_threadpool(import_study, spec, files, save_local)
 
 
 def resolve_study(study_id):
@@ -248,15 +269,17 @@ def tsokar_manifest(study_id: str):
 
 
 @app.get("/api/tsokar/{study_id}/window")
-def tsokar_window(study_id: str, x: float = Query(50, ge=0, le=100), y: float = Query(50, ge=0, le=100)):
+def tsokar_window(study_id: str, x: float | None = Query(None, ge=0, le=100),
+                  y: float | None = Query(None, ge=0, le=100)):
     with study_lock:
-        directory, manifest = resolve_study(study_id)
         try:
-            terrain, imagery = load_window(directory, x, y, manifest)
-        except (ValueError, RasterioError) as exc:
+            directory, manifest = resolve_study(study_id)
+            terrain, imagery, center = load_window(directory, x, y, manifest, return_center=True)
+        except (ValueError, OSError, RasterioError, KeyError, TypeError) as exc:
             raise HTTPException(422, str(exc)) from exc
     result = describe_terrain(register_terrain(terrain), terrain)
     result["study"] = study_summary(study_id, manifest)
+    result["window"] = {"x": center[0], "y": center[1]}
     if imagery is not None:
         result["imagery"] = np.moveaxis(imagery, 0, -1).tolist()
     return result

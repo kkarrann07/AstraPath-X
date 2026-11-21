@@ -3,130 +3,166 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#070b14">
-  <meta name="description" content="Plan and stress-test a solar rover mission on synthetic or uploaded elevation data.">
+  <meta name="theme-color" content="#0a101a">
+  <meta name="description" content="Plan and simulate rover missions using terrain, power and return constraints.">
   <title>AstraPath-X | Rover Mission Control</title>
   <link rel="stylesheet" href="assets/style.css">
   <script type="module" src="assets/app.js"></script>
 </head>
-<body>
+<body data-view="plan">
+  <a class="skip-link" href="#map-title">Skip to terrain</a>
   <header class="topbar">
     <div class="topbar-inner">
-      <div class="brand"><span class="brand-icon" aria-hidden="true">✦</span><span>AstraPath<span class="accent">-X</span><small>ROVER SURVIVAL INTELLIGENCE</small></span></div>
-      <nav class="header-right" aria-label="Mission navigation"><a href="#map-title">Terrain</a><a href="#decision-title">Simulation</a><a href="#settings">Parameters</a><span class="event">ASTRA 2026</span></nav>
+      <div class="brand"><span class="brand-icon" aria-hidden="true"><i></i></span><div><strong>AstraPath<span>-X</span></strong><small>Rover Survival Intelligence</small></div></div>
+      <nav class="workspace-nav segments" aria-label="Mission workspace">
+        <button type="button" data-view-choice="plan" aria-pressed="true">Plan mission</button>
+        <button type="button" data-view-choice="simulation" aria-pressed="false">Simulate</button>
+      </nav>
+      <div class="header-actions"><span class="event">ASTRA 2026</span><button class="button secondary" id="demo" type="button">Judge challenge</button></div>
     </div>
   </header>
-  <main>
-    <section class="hero">
-      <div class="hero-copy">
-        <h1>Rover Mission<br><span class="accent">Control</span></h1>
-        <p>Don't just find a route. Make sure the rover survives the mission.</p>
-        <button class="button secondary" id="demo" type="button"><span aria-hidden="true">▷</span> Judge challenge</button>
-      </div>
-      <div class="data-console" aria-labelledby="data-title">
-        <div class="data-console-heading"><span class="section-icon" aria-hidden="true">⊞</span><h2 id="data-title">Terrain data</h2></div>
-        <button class="data-option" id="load-dem" type="button" aria-labelledby="upload-option-title" aria-describedby="upload-option-detail">
-          <span><strong id="upload-option-title">Upload GeoTIFF</strong><small id="upload-option-detail">Single-band elevation raster for any location</small></span><span aria-hidden="true">＋</span>
-        </button>
-        <button class="data-option" id="real-mode" type="button" aria-labelledby="study-option-title" aria-describedby="study-option-detail">
-          <span><strong id="study-option-title">Real ISRO Dataset Mode</strong><small id="study-option-detail">Tso Kar CartoDEM tiles and optional 2025 imagery</small></span><span aria-hidden="true">＋</span>
-        </button>
-        <p id="data-status" role="status">Checking for installed Tso Kar terrain…</p>
-      </div>
-    </section>
-    <section class="summary" aria-label="Mission overview">
-      <div><span class="summary-icon">◈</span><div><span>ACTIVE TERRAIN</span><strong id="active-terrain">Loading terrain</strong><small id="terrain-origin"></small></div></div>
-      <div><span class="summary-icon cyan">ϟ</span><div><span>ROVER BATTERY</span><strong id="battery-top">—</strong><small id="battery-detail"></small><div class="battery-meter" aria-hidden="true"><i id="battery-meter-fill"></i></div></div></div>
-      <div><span class="summary-icon amber">◉</span><div><span>SUN ALTITUDE</span><strong id="sun-top">—</strong><small id="sun-detail"></small></div></div>
-      <div><span class="summary-icon green">◎</span><div><span>MISSION STATUS</span><strong id="status-top" data-status="READY">READY</strong><small id="status-detail">Awaiting mission plan</small></div></div>
-    </section>
-    <div class="main-grid">
-      <section class="panel terrain-panel" aria-labelledby="map-title">
-        <div class="panel-heading terrain-heading"><div><h2 id="map-title">Terrain analysis</h2><p id="terrain-detail">Preparing elevation grid</p></div>
-          <div class="segments" aria-label="Terrain overlay">
-            <button type="button" data-layer="terrain" aria-pressed="false">Elevation</button>
-            <button type="button" data-layer="hazard" aria-pressed="false">Hazards</button>
-            <button type="button" data-layer="solar" aria-pressed="true">Sunlight</button>
-            <button type="button" data-layer="imagery" aria-pressed="false" hidden>2025 imagery</button>
-          </div>
-        </div>
-        <div id="study-source" class="study-source" hidden>
-          <span id="study-provenance"></span>
-          <a id="study-manifest" target="_blank" rel="noopener">Provenance manifest</a>
-        </div>
-        <div class="map-wrap">
-          <canvas id="map" role="img" aria-label="Elevation map showing routes, rover, base, target and point of no return"></canvas>
-          <i class="map-corner top-left" aria-hidden="true"></i><i class="map-corner top-right" aria-hidden="true"></i>
-          <i class="map-corner bottom-left" aria-hidden="true"></i><i class="map-corner bottom-right" aria-hidden="true"></i>
-          <div class="map-top"><span class="map-chip"><b></b><span id="map-source">SYNTHETIC ELEVATION</span></span><span class="compass" aria-label="North">▲<small>N</small></span></div>
-          <div class="map-bottom"><span class="map-chip" id="scale"></span><span class="map-chip" id="map-coordinate">Select a map cell</span></div>
-        </div>
-        <div class="map-legend">
-          <span><i class="legend-dot pink"></i> Base</span><span><i class="legend-dot mint"></i> Target</span>
-          <span><i class="legend-dot white"></i> Rover</span><span><i class="legend-dot warn"></i> Point of no return</span>
-          <span id="layer-key"><i class="legend-dot shadow"></i> Modeled shadow</span>
-        </div>
-        <div class="map-tools">
-          <div class="segments" aria-label="Map point selection">
-            <button id="pick-base" type="button" aria-pressed="false">Set base</button>
-            <button id="pick-target" type="button" aria-pressed="false">Set target</button>
-          </div>
-          <form id="coordinates" aria-label="Set coordinates manually">
-            <label>Base <input name="base" aria-label="Base row and column" pattern="\d+\s*,\s*\d+" required></label>
-            <label>Target <input name="target" aria-label="Target row and column" pattern="\d+\s*,\s*\d+" required></label>
-            <button class="button secondary mini" type="submit">Set points</button>
+  <main class="command">
+    <div class="mission-heading">
+      <div><h1>Rover Mission Control</h1><p id="mode-description">Plan a traverse and check its modeled energy and return margins.</p></div>
+      <div class="mission-state"><span class="status-light" aria-hidden="true"></span><strong id="status-top" data-status="PLANNING">PLANNING</strong><span id="status-detail">Loading terrain</span></div>
+    </div>
+
+    <div class="workspace">
+      <aside class="panel configuration" aria-labelledby="config-title">
+        <div class="panel-heading"><h2 id="config-title">Mission configuration</h2><button class="text-button" id="config-toggle" type="button" aria-expanded="false" aria-controls="config-body">Show settings</button></div>
+        <div id="config-body">
+          <section class="config-section">
+            <h3>Terrain source</h3>
+            <label class="sr-only" for="dataset-select">Terrain dataset</label>
+            <select id="dataset-select"><option value="demo">Simulation</option><option value="ladakh">Ladakh · Tso Kar</option><option value="lunar">Lunar</option><option value="upload" hidden>Uploaded GeoTIFF</option></select>
+            <div class="source-detail">
+              <strong id="active-terrain">Loading terrain</strong>
+              <span id="terrain-origin"></span>
+              <p id="data-status" role="status">Checking for installed Tso Kar terrain…</p>
+            </div>
+            <div class="data-actions"><button class="text-button" id="load-dem" type="button">Upload GeoTIFF</button><button class="text-button" id="real-mode" type="button">ISRO datasets</button></div>
+          </section>
+          <section class="config-section">
+            <h3>Waypoints</h3>
+            <form id="coordinates" aria-label="Mission waypoints">
+              <div class="waypoint"><label for="base-coordinate"><i class="legend-dot base"></i> Base / start</label><div><input id="base-coordinate" name="base" aria-label="Base row and column" pattern="\d+\s*,\s*\d+" inputmode="text" required><button class="button secondary mini" id="pick-base" type="button" aria-pressed="false">Pick on map</button></div></div>
+              <div class="waypoint"><label for="target-coordinate"><i class="legend-dot target"></i> Destination</label><div><input id="target-coordinate" name="target" aria-label="Target row and column" pattern="\d+\s*,\s*\d+" inputmode="text" required><button class="button secondary mini" id="pick-target" type="button" aria-pressed="false">Pick on map</button></div></div>
+            </form>
+          </section>
+          <form id="parameters">
+            <section class="config-section">
+              <h3>Planning constraints</h3>
+              <label class="field-label">Route optimization<select id="optimization"><option value="shortest">Fastest · Shortest</option><option value="safest">Safest</option><option value="energy">Energy-efficient</option></select></label>
+              <div class="parameter-grid core-parameters"></div>
+              <label class="switch-line"><span>Solar Survival</span><input type="checkbox" id="solar" checked aria-label="Solar Survival Mode"></label>
+              <label class="check compact"><input id="round-trip" type="checkbox"> Require return to base</label>
+              <details class="advanced"><summary>Advanced parameters</summary><div class="parameter-grid advanced-parameters"></div><p id="robustness">Modeled uncertainty trials run after planning.</p></details>
+            </section>
+            <div class="config-footer"><p id="config-feedback" role="status"></p><button class="button primary" id="plan-mission" type="submit">Plan mission</button></div>
           </form>
         </div>
-      </section>
-      <aside class="side-stack">
-        <section class="panel routes-panel" aria-labelledby="routes-title">
-          <div class="panel-heading"><div><h2 id="routes-title">Route comparison</h2><p>Distance, terrain and power trade-offs</p></div><span class="section-icon" aria-hidden="true">⌁</span></div>
-          <div id="routes" class="routes" aria-live="polite"><div class="placeholder">Calculating routes…</div></div>
-        </section>
-        <section class="panel decision-panel" aria-labelledby="decision-title">
-          <div class="panel-heading"><div><h2 id="decision-title">Mission simulation</h2><p id="sim-progress">Choose a feasible route to begin</p></div><span class="section-icon" aria-hidden="true">⟐</span></div>
-          <div class="simulation">
-            <div class="progress" role="progressbar" aria-label="Route progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-fill"></div></div>
-            <div class="sim-controls">
-              <button class="button primary mini" id="play" type="button">▶ Play</button>
-              <button class="button secondary mini" id="step" type="button">Advance 5 cells</button>
-              <button class="button secondary mini" id="reset" type="button">Reset</button>
-              <button class="button secondary mini" id="return" type="button" hidden>Return to base</button>
+      </aside>
+
+      <div class="mission-center">
+        <section class="panel terrain-panel" aria-labelledby="map-title">
+          <div class="panel-heading terrain-heading">
+            <div><h2 id="map-title">Terrain view</h2><p id="terrain-detail">Preparing elevation grid</p></div>
+            <div class="segments map-layers" aria-label="Terrain layer">
+              <button type="button" data-layer="terrain" aria-pressed="true">Elevation</button>
+              <button type="button" data-layer="slope" aria-pressed="false">Slope</button>
+              <button type="button" data-layer="hazard" aria-pressed="false">Hazards</button>
+              <button type="button" data-layer="solar" aria-pressed="false">Sunlight</button>
+              <button type="button" data-layer="imagery" aria-pressed="false" hidden>Imagery</button>
             </div>
-            <div class="emergency-controls">
-              <label for="loss">Battery loss <output id="loss-value">45%</output></label>
-              <input id="loss" type="range" min="5" max="100" step="5" value="45">
-              <div class="emergency-actions"><button class="button danger mini" id="drop" type="button">ϟ Inject loss</button><button class="button secondary mini" id="wait" type="button">Idle 10 min</button></div>
-            </div>
-            <div class="notice" id="decision" role="status">Planning your mission…</div>
           </div>
+          <div class="map-wrap">
+            <canvas id="map" tabindex="0" role="img" aria-label="Terrain map with route and rover positions. Use arrow keys to pan, plus and minus to zoom, or Home to reset. Enter places the selected waypoint at the map center."></canvas>
+            <div class="map-top"><span id="map-source" class="map-chip">ELEVATION GRID</span><span class="compass" aria-label="Grid north">N<span aria-hidden="true">↑</span></span></div>
+            <div class="map-zoom" aria-label="Map navigation"><button type="button" id="zoom-in" title="Zoom in" aria-label="Zoom in">+</button><button type="button" id="zoom-out" title="Zoom out" aria-label="Zoom out">−</button><button type="button" id="zoom-reset" title="Reset map view" aria-label="Reset map view">⤢</button></div>
+            <div class="map-bottom"><div class="map-chip scale-chip"><span id="scale"></span><i id="scale-line" aria-hidden="true"></i></div><span id="map-coordinate" class="map-chip">Row and column</span></div>
+            <div id="map-tooltip" class="map-tooltip" hidden></div>
+          </div>
+          <div class="map-legend">
+            <span><i class="legend-dot base"></i> Base</span><span><i class="legend-dot target"></i> Target</span>
+            <span><i class="legend-dot rover"></i> Rover</span><span><i class="legend-line risk"></i> Return deficit</span>
+            <span id="layer-key"></span>
+          </div>
+          <details id="study-source" class="study-source" hidden><summary>Dataset provenance</summary><p id="study-provenance"></p><a id="study-manifest" target="_blank" rel="noopener">Open provenance manifest</a></details>
+        </section>
+
+        <section class="panel analysis-panel" aria-labelledby="analysis-title">
+          <div class="panel-heading"><h2 id="analysis-title">Mission analysis</h2><div class="segments" aria-label="Analysis view">
+            <button type="button" data-analysis="routes" aria-pressed="true">Route comparison</button><button type="button" data-analysis="battery" aria-pressed="false">Battery forecast</button>
+          </div></div>
+          <div id="route-pane">
+            <div id="routes" aria-live="polite"><p class="placeholder">Calculating routes…</p></div>
+          </div>
+          <div id="battery-pane" hidden>
+            <div class="chart-wrap"><canvas id="timeline" role="img" aria-label="Modeled battery by route distance with illumination and shadow intervals"></canvas></div>
+            <p id="chart-detail" class="chart-detail"></p>
+            <div class="chart-legend"><span><i class="legend-line chart-sun"></i> Sunlit</span><span><i class="legend-line chart-shadow"></i> Shadow</span><span><i class="legend-line risk"></i> Return threshold</span><span><i class="legend-line chart-drive"></i> Cumulative drive</span><span><i class="legend-line chart-gain"></i> Cumulative solar</span></div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="mission-side" aria-labelledby="intel-title">
+        <section class="panel intelligence">
+          <div class="panel-heading"><h2 id="intel-title">Mission intelligence</h2><span class="quiet-tag">MODELED</span></div>
+          <div class="intel-body">
+            <div class="battery-head"><div><span>Rover battery</span><strong id="battery-top">—</strong></div><small id="battery-detail"></small></div>
+            <div class="battery-meter" aria-hidden="true"><i id="battery-meter-fill"></i></div>
+            <dl class="metric-grid">
+              <div><dt id="drive-label" title="Gross onboard demand before modeled solar input.">Drive energy</dt><dd id="metric-drive">—</dd></div>
+              <div><dt title="Minimum onboard charge at the target to model a return without breaching the energy floor.">Return charge</dt><dd id="metric-return">—</dd></div>
+              <div><dt>Arrival battery</dt><dd id="metric-arrival">—</dd></div>
+              <div><dt>Travel distance</dt><dd id="metric-distance">—</dd></div>
+              <div><dt>Maximum slope</dt><dd id="metric-slope">—</dd></div>
+              <div><dt>Solar contribution</dt><dd id="metric-solar">—</dd></div>
+              <div><dt title="The share of synthetic elevation perturbations that satisfy the modeled constraints.">Terrain robustness</dt><dd id="metric-robust">—</dd></div>
+              <div><dt>Feasibility</dt><dd id="metric-feasible">—</dd></div>
+            </dl>
+            <div class="recommendation" id="recommendation">
+              <span>Recommendation</span><strong id="recommendation-action">Planning</strong>
+              <p id="decision" role="status">Evaluating mission constraints…</p>
+            </div>
+            <p id="warning" class="return-warning" role="status"></p>
+            <button class="button secondary plan-only" id="open-simulation" type="button" disabled>Open simulation</button>
+          </div>
+        </section>
+        <section class="panel simulation-panel sim-only" aria-labelledby="simulation-title">
+          <div class="panel-heading"><h2 id="simulation-title">Flight controls</h2></div>
+          <div class="simulation-controls">
+            <p id="sim-progress">Choose a feasible route to begin.</p>
+            <div class="progress" role="progressbar" aria-label="Route progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-fill"></div></div>
+            <div class="sim-actions"><button class="button primary mini" id="play" type="button">Play</button><button class="button secondary mini" id="step" type="button">Advance 5 cells</button><button class="button secondary mini" id="reset" type="button">Reset</button></div>
+            <label class="loss-label" for="loss">Battery loss <output id="loss-value">45%</output></label>
+            <input id="loss" type="range" min="5" max="100" step="5" value="45">
+            <div class="sim-actions"><button class="button danger mini" id="drop" type="button">Inject loss</button><button class="button secondary mini" id="wait" type="button">Idle 10 min</button><button class="button secondary mini" id="return" type="button" hidden>Return to base</button></div>
+          </div>
+        </section>
+        <section class="panel events-panel sim-only" aria-labelledby="events-title">
+          <div class="panel-heading"><h2 id="events-title">Event timeline</h2></div>
+          <ol id="events" aria-live="polite"></ol>
         </section>
       </aside>
     </div>
-    <div class="lower-grid">
-      <section class="panel timeline-panel" aria-labelledby="timeline-title">
-        <div class="panel-heading"><div><h2 id="timeline-title">Battery timeline</h2><p>Projected charge and minimum charge for modeled return</p></div><span class="section-icon" aria-hidden="true">ϟ</span></div>
-        <div class="chart-wrap"><canvas id="timeline" role="img" aria-label="Projected battery by route distance"></canvas></div>
-        <p id="chart-detail" class="chart-detail"></p>
-      </section>
-      <section class="panel survival-panel" aria-labelledby="solar-title">
-        <div class="panel-heading"><div><h2 id="solar-title">Solar survival</h2><p>Fixed-angle terrain shadow simulation</p></div><label class="switch"><input type="checkbox" id="solar" checked aria-label="Solar Survival Mode"><span></span></label></div>
-        <div class="survival-content">
-          <div class="solar-stats"><div><small>ILLUMINATED ROUTE</small><strong id="lit-stat">—</strong></div><div><small>LONGEST SHADOW</small><strong id="shadow-stat">—</strong></div></div>
-          <div id="warning" class="notice" role="status"></div>
-          <label class="check"><input id="round-trip" type="checkbox"> Require return to base</label>
-        </div>
-      </section>
-    </div>
-    <section id="settings" class="panel settings-panel" aria-labelledby="settings-title">
-      <div class="panel-heading"><div><h2 id="settings-title">Mission parameters</h2><p>Apply changes to recalculate routes and restart the simulation.</p></div><span class="section-icon" aria-hidden="true">⊞</span></div>
-      <form id="parameters">
-        <div class="parameter-grid"></div>
-        <div class="settings-actions"><button class="button primary" type="submit">Apply parameters</button><p id="robustness">Seeded elevation uncertainty tests run after planning.</p></div>
-      </form>
-    </section>
-    <footer><span><strong>AstraPath-X</strong> / ASTRA 2026</span><span>Synthetic terrain by default. Uploaded provenance is user supplied. Analysis is illustrative. <a href="https://bhuvan-app3.nrsc.gov.in/data/download/" target="_blank" rel="noopener">ISRO / NRSC Bhuvan CartoDEM</a></span></footer>
+    <footer><span>AstraPath-X · ASTRA 2026</span><span>Energy, illumination, uncertainty and recommendations are modeled.</span></footer>
   </main>
+
+  <dialog id="judge-dialog" aria-labelledby="judge-title">
+    <form method="dialog" id="judge-form">
+      <h2 id="judge-title">Judge challenge</h2>
+      <p>Explore the synthetic Kestrel Basin. Change a constraint to see how modeled feasibility changes.</p>
+      <div class="judge-options">
+        <label for="judge-battery">Initial battery <output id="judge-battery-value" aria-hidden="true">82%</output><input id="judge-battery" type="range" min="0" max="100" step="1" value="82" aria-label="Initial battery (%)"></label>
+        <label for="judge-slope">Maximum slope <output id="judge-slope-value" aria-hidden="true">19°</output><input id="judge-slope" type="range" min="1" max="60" step="0.5" value="19" aria-label="Maximum slope (degrees)"></label>
+        <label class="check"><input id="judge-solar" type="checkbox" checked> Model solar charging</label>
+        <label class="check"><input id="judge-return" type="checkbox"> Require return to base</label>
+      </div>
+      <div id="judge-result" class="judge-result" role="status">Preparing the challenge…</div>
+      <div class="upload-buttons"><button class="button secondary" value="close">Back to plan</button><button class="button primary" id="judge-simulate" value="simulation" disabled>Open simulation</button></div>
+    </form>
+  </dialog>
   <dialog id="upload-dialog" aria-labelledby="upload-title">
     <form id="upload-form">
       <h2 id="upload-title">Upload elevation</h2><p>Use a single-band, georeferenced elevation GeoTIFF in metres, up to 32 MiB.</p>
@@ -142,7 +178,19 @@
   <dialog id="study-dialog" aria-labelledby="study-title">
     <form id="study-form">
       <h2 id="study-title">Load Tso Kar data</h2>
-      <p>Bring your own Bhoonidhi or Bhuvan download. CartoDEM drives routing. Optional 2025 imagery appears as a map layer. <a href="tso-kar-guide" target="_blank" rel="noopener">Download and import guide</a></p>
+      <p>CartoDEM drives routing. Optional 2025 imagery appears as a map layer.</p>
+      <details>
+        <summary>Get the official satellite files</summary>
+        <div class="study-fields">
+          <p>Sign in to Bhoonidhi and open <strong>Search-Criteria → Area of Interest → Polygon</strong>. Enter top left <strong>33.38, 77.88</strong> and bottom right <strong>33.21, 78.13</strong> (latitude, longitude). Apply the rectangle using the map-pin button.</p>
+          <p>Select <strong>CartoSat-1_PAN_CartoDEM-30m</strong> under <strong>OpenData_DirectDownload</strong>. Open the result metadata and save it with the original download.</p>
+          <div class="study-links">
+            <a href="https://bhoonidhi.nrsc.gov.in/bhoonidhi/index.html" target="_blank" rel="noopener">Bhoonidhi catalogue</a>
+            <a href="tso-kar-aoi.kml" download>Download AOI KML</a>
+            <a href="tso-kar-guide" target="_blank" rel="noopener">Full download and import guide</a>
+          </div>
+        </div>
+      </details>
       <p id="study-availability" role="status">Checking for a prepared study…</p>
       <div class="segments import-mode" aria-label="Import method">
         <button type="button" data-import-mode="guided" aria-pressed="true">Guided import</button>
@@ -167,7 +215,7 @@
       <fieldset id="manifest-import" class="import-fields" hidden disabled>
         <label class="file-box">Import metadata JSON <input type="file" name="spec" accept=".json,application/json"></label>
         <label class="file-box">Every file referenced by the manifest <input type="file" name="files" multiple></label>
-        <p>Use this option to select specific archive members, specify band order, or retain separate catalogue metadata files.</p>
+        <p>Use this option to select specific archive members, specify band order, or retain separate catalogue metadata files. <a href="tso-kar-import.example.json" download>Download the JSON template</a></p>
       </fieldset>
       <details id="study-window"><summary>Adjust routing window</summary>
         <p>X increases east and Y increases south. Move the window if your tiles cover only part of the study area.</p>
@@ -177,7 +225,7 @@
         </div>
       </details>
       <label class="check" id="study-save-option" hidden><input type="checkbox" name="save_local"> Save as startup terrain on this computer</label>
-      <p>Browser imports support up to 96 MiB per request. Session-only imports expire when the server restarts.</p>
+      <p id="study-upload-limit">Hosted browser imports support up to 96 MiB per request. Session-only imports expire when the server restarts.</p>
       <p id="study-feedback" role="status"></p>
       <div class="upload-buttons">
         <button class="button secondary" id="study-cancel" type="button">Close</button>

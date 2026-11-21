@@ -208,6 +208,7 @@ def simulate(network, path, initial, return_required=None, enforce_return=None):
         timeline.append({
             "row": node[0], "col": node[1], "battery": round(battery, 5),
             "distance": round(distance, 5), "seconds": round(duration, 3),
+            "gross": round(energy, 5), "solar": round(collected, 5),
             "required": round(threshold, 5) if isfinite(threshold) else None,
             "lit": edge.lit if previous is not None else bool(network.lit[node]),
             "shadow_seconds": round(shadow, 3),

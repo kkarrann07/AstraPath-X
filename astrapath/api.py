@@ -34,6 +34,7 @@ UPLOAD_LIMIT = 32 * 1024 * 1024
 uploads = OrderedDict()
 upload_lock = Lock()
 STUDY_LIMIT = 96 * 1024 * 1024
+LOCAL_STUDY_LIMIT = 2 * 1024**3
 studies = OrderedDict()
 study_lock = Lock()
 import_lock = Lock()
@@ -131,6 +132,18 @@ def tsokar_guide():
     return FileResponse(STATIC.parent / "docs" / "TSO_KAR.md", media_type="text/plain; charset=utf-8")
 
 
+@app.get("/tso-kar-aoi.kml", include_in_schema=False)
+def tsokar_aoi():
+    return FileResponse(STATIC.parent / "docs" / "tsokar-aoi.kml",
+                        media_type="application/vnd.google-earth.kml+xml", filename="tsokar-aoi.kml")
+
+
+@app.get("/tso-kar-import.example.json", include_in_schema=False)
+def tsokar_import_template():
+    return FileResponse(STATIC.parent / "docs" / "tsokar-import.example.json",
+                        media_type="application/json", filename="tsokar-import.example.json")
+
+
 @app.get("/api/terrain/demo")
 def demo():
     return describe_terrain("demo", DEMO)
@@ -170,11 +183,23 @@ def can_save_locally():
     return os.environ.get("ASTRAPATH_SAVE_LOCAL") == "1" and not installed_study().exists()
 
 
+def local_study_request(request):
+    return (os.environ.get("ASTRAPATH_SAVE_LOCAL") == "1"
+            and request.url.hostname in {"127.0.0.1", "localhost"}
+            and request.headers.get("origin") == f"http://{request.url.netloc}")
+
+
+def upload_limit_mib():
+    limit = LOCAL_STUDY_LIMIT if os.environ.get("ASTRAPATH_SAVE_LOCAL") == "1" else STUDY_LIMIT
+    return limit // 1024**2
+
+
 def study_summary(study_id, manifest):
     return {
         "id": study_id, "name": manifest["name"], "bbox": manifest["study_bbox_wgs84"],
         "coverage": manifest["valid_coverage_fraction"], "posting": manifest["posting_metres"],
         "can_save_locally": can_save_locally(),
+        "upload_limit_mib": upload_limit_mib(),
         "dem": [{key: item[key] for key in ("product_id", "version", "acquired")} for item in manifest["dem"]],
         "imagery": ({key: manifest["imagery"][key] for key in ("product_id", "acquired", "display")}
                     if manifest["imagery"] else None),
@@ -186,7 +211,7 @@ def tsokar_status():
     path = installed_study() / "manifest.json"
     if not path.is_file():
         return {"id": None, "name": "Tso Kar Valley, Ladakh", "bbox": AOI,
-                "can_save_locally": can_save_locally()}
+                "can_save_locally": can_save_locally(), "upload_limit_mib": upload_limit_mib()}
     try:
         return study_summary("installed", json.loads(path.read_text(encoding="utf-8")))
     except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -227,15 +252,17 @@ def import_study(spec, files, save_local=False):
 
 @app.post("/api/tsokar/import")
 async def tsokar_import(request: Request, save_local: bool = False):
-    if save_local and (os.environ.get("ASTRAPATH_SAVE_LOCAL") != "1"
-                       or request.url.hostname not in {"127.0.0.1", "localhost"}
-                       or request.headers.get("origin") != f"http://{request.url.netloc}"):
+    from_launcher = local_study_request(request)
+    if save_local and not from_launcher:
         raise HTTPException(403, "Save as startup terrain is available from the local Windows launcher.")
     length = request.headers.get("content-length", "")
     if not length.isdigit():
         raise HTTPException(411, "A file upload must include its content length.")
-    if int(length) > STUDY_LIMIT:
-        raise HTTPException(413, "Imports above 96 MiB use the local CLI described in the Tso Kar guide.")
+    limit = LOCAL_STUDY_LIMIT if from_launcher else STUDY_LIMIT
+    if int(length) > limit:
+        detail = ("The import exceeds the 2 GiB local browser limit."
+                  if from_launcher else "This server accepts up to 96 MiB. Use the Windows launcher for larger imports.")
+        raise HTTPException(413, detail)
     async with request.form(max_files=24, max_fields=1, max_part_size=64 * 1024) as form:
         metadata = form.get("spec")
         files = form.getlist("files")

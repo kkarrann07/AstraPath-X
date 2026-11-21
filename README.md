@@ -12,20 +12,30 @@ AstraPath-X plans and stress-tests rover traverses on an elevation grid. Compare
 
 ### Load terrain in the browser
 
-- A prepared Tso Kar study in `data/tsokar` loads on startup. When no study is installed, the **Terrain data** panel says so and clearly identifies Kestrel Basin as a synthetic demo.
+- A prepared Tso Kar study in `data/tsokar` loads on startup. When no study is installed, **Terrain source** says so and identifies Kestrel Basin as a synthetic demo.
 - For one elevation file, choose **Upload GeoTIFF**, select a georeferenced single-band elevation file in metres, and choose **Load terrain**. Files up to 32 MiB are supported.
-- For official Tso Kar files, choose **Real ISRO Dataset Mode → Guided import**, supply the CartoDEM TIFF or ZIP and the catalogue metadata, then choose **Import and load**. Check **Save as startup terrain on this computer** to retain the prepared study and source files locally and load them on the next launch. This option is available from the Windows launcher while there is no installed study directory. Additional uploads can run as session studies. Browser imports are limited to 96 MiB.
+- For official Tso Kar files, choose **ISRO datasets → Get the official satellite files** for search coordinates and the AOI download. In **Guided import**, supply the CartoDEM TIFF or ZIP and catalogue metadata, then choose **Import and load**. Check **Save as startup terrain on this computer** to keep the first prepared study and originals. The Windows launcher accepts browser imports up to 2 GiB per request. Hosted imports are limited to 96 MiB.
 
 [Tso Kar download and import guide](docs/TSO_KAR.md)
 
 ## Live judge challenge
 
-1. Click **Judge challenge** to load Kestrel Basin with Base `42,10`, Target `30,90` and the shortest route selected. Judges can set other endpoints on the map or enter row and column values. Reset to the challenge defaults before the steps below.
-2. With **Solar Survival** on, compare the shorter 2.55 km route (60% illuminated, about 52.0 Wh at target) and the 2.91 km energy-efficient route (100% illuminated, about 60.8 Wh at target). Toggle solar off to compare projections and the energy route, then turn it back on. Switch to **Hazards** to inspect restricted terrain.
-3. Select **Shortest**, then click **Advance 5 cells** three times. Inject the default **45% battery loss**. The rover replans from cell 15 and recommends **RETURN** with the modeled route, slope, charge floor and predicted minimum charge. Advance along the amber return route. For a second outcome, reset and inject **100%** loss at the same point to produce **STOP/HOLD**.
+1. Open **Judge challenge** to load the synthetic Kestrel Basin. Adjust battery, maximum slope, solar charging, or the return requirement to replan immediately. **Back to plan** returns to route comparison. **Open simulation** starts at the base when the selected route is feasible. Reopen the challenge to restore the default conditions.
+2. Compare **Fastest / Shortest** at 2.55 km and about 52.0 Wh at arrival with **Energy-efficient** at 2.91 km and about 60.8 Wh at arrival. The **Battery forecast** shows modeled sunlight and shadow by distance. Toggle **Solar Survival** to compare charging and choose **Hazards** to inspect restricted terrain.
+3. Select **Fastest / Shortest**, open **Simulate**, and click **Advance 5 cells** three times. Inject the default **45% battery loss**. The rover replans from cell 15 and recommends **RETURN**. The event timeline records the fault and the decision. For a second outcome, reset and inject **100%** loss at the same point to produce **STOP/HOLD**.
 4. Reset the shortest route and press **Play**. The rover pauses before its first **Point of No Return**, approximately 2.48 km into this plan. The map marks it and the battery timeline shows where the projected charge falls below the modeled return threshold. Resume to cross the point in one-way mode.
 5. Enable **Require return to base**. The shortest candidate is rejected. Select **Energy-efficient**, advance to target, and click **Return to base** to execute the modeled return. **Idle 10 min** simulates stationary power draw and solar input at the current cell before recalculating the recommendation.
-6. Adjust the elevation uncertainty in **Mission parameters**. Route cards show how many of 20 deterministic terrain trials met the configured constraints.
+6. Adjust elevation uncertainty under **Mission configuration → Advanced parameters**, then choose **Plan mission**. Mission intelligence reports how many of 20 deterministic terrain trials met the configured constraints for the selected candidate.
+
+## Mission-control workspace
+
+- **Mission configuration** holds the terrain selector, waypoints, battery and reserve, maximum slope, optimization policy, and solar assumptions. Select **Plan mission** to apply edited fields. On narrow displays, select **Show settings** to expand the panel.
+- **Terrain view** supports elevation, slope, hazards, simulated sunlight and registered imagery when available. Drag to pan, use the wheel or zoom controls, and hover over a route to inspect its metrics. With the map focused, use arrow keys to pan, **+** or **−** to zoom, and **Home** to reset. For keyboard waypoint placement, select a waypoint, center the map and press **Enter**. You can also enter row and column directly.
+- **Mission intelligence** shows the gross energy requirement, expected arrival charge, modeled return threshold, robustness and recommendation for the selected route. The return threshold includes the mission floor. The amber dashed map sections mark modeled return deficits.
+- **Simulate** exposes flight controls and a time-stamped event timeline. The battery graph shows projected charge, gross energy used, modeled solar gain and the return threshold. Solar, battery and recommendation outputs are model results.
+- **Lunar** is listed as unavailable. The current terrain pipeline supports Earth-referenced DEMs, and no validated lunar CRS or dataset is bundled.
+
+[Desktop mission plan](docs/screenshots/mission-control-desktop.jpg) · [Emergency replan](docs/screenshots/mission-control-simulation.jpg) · [Tablet](docs/screenshots/mission-control-tablet.jpg) · [Mobile](docs/screenshots/mission-control-mobile.jpg)
 
 ## Elevation data
 

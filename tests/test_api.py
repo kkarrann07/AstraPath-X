@@ -1,11 +1,14 @@
+from xml.etree import ElementTree
+
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 from rasterio.io import MemoryFile
 from rasterio.transform import from_origin
 
-from astrapath.api import app
+from astrapath.api import LOCAL_STUDY_LIMIT, STUDY_LIMIT, app
 from astrapath.terrain import read_geotiff
+from astrapath.tsokar import AOI
 
 
 client = TestClient(app)
@@ -33,6 +36,9 @@ def test_live_entry_points_and_judge_replanning():
     assert terrain["origin"] == "Synthetic demo" and terrain["elevation"][55][11] is None
     result = client.post("/api/plan", json=DEFAULT).json()
     route = result["routes"]["shortest"]
+    assert route["timeline"][0]["gross"] == route["timeline"][0]["solar"] == 0
+    assert route["timeline"][-1]["gross"] == pytest.approx(route["gross"], abs=.005)
+    assert route["timeline"][-1]["solar"] == pytest.approx(route["solar"], abs=.005)
     point = route["timeline"][15]
     for loss, expected in [(0, "CONTINUE"), (.45, "RETURN"), (1, "STOP/HOLD")]:
         decision = client.post("/api/emergency", json={**DEFAULT, "position": route["path"][15],
@@ -41,6 +47,37 @@ def test_live_entry_points_and_judge_replanning():
         assert decision.json()["status"] == expected
     trials = client.post("/api/robustness", json=DEFAULT).json()
     assert trials["trials"] == 20 and trials["seed"] == 2026
+
+
+def test_tso_kar_downloads_match_the_processor_study_area():
+    kml = client.get("/tso-kar-aoi.kml")
+    assert kml.status_code == 200
+    assert "attachment" in kml.headers["content-disposition"]
+    coordinates = ElementTree.fromstring(kml.content).find(".//{http://www.opengis.net/kml/2.2}coordinates")
+    longitudes, latitudes, _ = zip(*(map(float, point.split(",")) for point in coordinates.text.split()))
+    assert (min(longitudes), min(latitudes), max(longitudes), max(latitudes)) == AOI
+    template = client.get("/tso-kar-import.example.json")
+    assert template.status_code == 200
+    assert template.json()["dem"][0]["acquired"] is None
+    assert template.json()["imagery"] is None
+
+
+def test_local_archive_limit_requires_a_launcher_and_same_origin(monkeypatch, tmp_path):
+    monkeypatch.setenv("ASTRAPATH_TSOKAR_DIR", str(tmp_path / "unconfigured"))
+    monkeypatch.setenv("ASTRAPATH_SAVE_LOCAL", "1")
+    host = "http://127.0.0.1:8765"
+    loopback = TestClient(app, base_url=host)
+    assert loopback.get("/api/tsokar").json()["upload_limit_mib"] == 2048
+    endpoint = "/api/tsokar/import"
+    headers = {"content-length": str(STUDY_LIMIT + 1)}
+    assert loopback.post(endpoint, headers=headers).status_code == 413
+    # The oversized header is accepted locally. The empty form still fails validation.
+    assert loopback.post(endpoint, headers={**headers, "origin": host}).status_code == 422
+    assert loopback.post(endpoint, headers={"content-length": str(LOCAL_STUDY_LIMIT + 1),
+                                           "origin": host}).status_code == 413
+    monkeypatch.delenv("ASTRAPATH_SAVE_LOCAL")
+    assert loopback.get("/api/tsokar").json()["upload_limit_mib"] == 96
+    assert loopback.post(endpoint, headers={**headers, "origin": host}).status_code == 413
 
 
 def test_round_trip_completes_using_explicit_return():

@@ -1,0 +1,17 @@
+{
+  "dem": [
+    {
+      "file": "replace-with-exact-dem-package.zip",
+      "product_id": "replace-with-catalogue-tile-id",
+      "version": "replace-with-reported-product-version",
+      "catalogue": "Bhoonidhi",
+      "elevation_units": "m",
+      "acquired": null,
+      "acquisition_note": "Replace with the official acquisition date range or explain why it is unspecified.",
+      "license": "Replace with the terms shown for the downloaded CartoDEM product.",
+      "metadata_files": [],
+      "members": []
+    }
+  ],
+  "imagery": null
+}

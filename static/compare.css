@@ -1,0 +1,63 @@
+.comparison { --moon: #bcb0ee; }
+.compare-heading { align-items: end; }
+.compare-heading p { max-width: 42rem; }
+.compare-threshold { display: flex; gap: 9px; align-items: center; flex: none; color: var(--muted); font-size: .82rem; }
+.compare-threshold select { width: auto; min-width: 104px; }
+.comparison-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.compare-panel { --body-color: var(--cyan); }
+.lunar-panel { --body-color: var(--moon); }
+.compare-panel-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 13px 15px; border-bottom: 1px solid var(--stroke); background: #121d2b; }
+.compare-panel-header h2 { margin-top: 2px; font-size: 1.35rem; letter-spacing: -.025em; }
+.compare-panel-header select { max-width: min(49%, 265px); }
+.body-label { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; color: var(--body-color); font: 650 .7rem/1.3 ui-monospace, Consolas, monospace; letter-spacing: .05em; }
+.body-label span { color: var(--muted); font-weight: 400; }
+.compare-tools { display: flex; align-items: center; justify-content: space-between; gap: 7px; flex-wrap: wrap; min-height: 52px; padding: 7px 12px; }
+.compare-layers { flex-wrap: wrap; }
+.compare-stage { position: relative; height: clamp(315px, 43vh, 570px); margin: 0 10px; overflow: hidden; border: 1px solid #33465c; border-radius: 6px; background: #0b1521; }
+.lunar-stage { background: #090f1b; }
+.compare-raster, #moon-globe, #moon-globe canvas, .moon-fallback { display: block; width: 100%; height: 100%; }
+.compare-raster, #moon-globe canvas { cursor: grab; touch-action: none; }
+.compare-raster:active, #moon-globe canvas:active { cursor: grabbing; }
+.compare-raster:focus-visible, #moon-globe canvas:focus-visible { outline-offset: -3px; }
+.compare-inspect, .compare-scale { position: absolute; pointer-events: none; bottom: 9px; }
+.compare-badge, .compare-palette { position: absolute; pointer-events: none; top: 9px; }
+.compare-badge { left: 9px; }
+.compare-palette { right: 9px; text-align: center; }
+.compare-palette::before { content: ""; display: block; height: 4px; margin-bottom: 3px; border-radius: 3px; background: linear-gradient(90deg, #142b39, #65aa9f, #e3dead); }
+.lunar-panel .compare-palette::before { background: linear-gradient(90deg, #241f3e, #7a70a6, #eae2ee); }
+.compare-panel .compare-palette[data-layer="slope"]::before { background: linear-gradient(90deg, #223e5b, #e5a763, #e0535c); }
+.compare-panel .compare-palette[data-layer="hazard"]::before { background: #e8747b; }
+.compare-inspect { left: 9px; max-width: calc(100% - 100px); }
+.compare-scale { right: 9px; }
+.compare-scale::after { content: ""; width: var(--scale-width, 36px); display: block; margin-top: 3px; height: 4px; border: 1px solid #a0bdcf; border-top: none; }
+.compare-empty { position: absolute; inset: 0; padding: 20px; display: grid; align-content: center; justify-items: center; gap: 8px; background: #0b1521; color: var(--ink); text-align: center; }
+.compare-empty p { max-width: 25rem; color: var(--muted); }
+.compare-meta { padding: 11px 14px 14px; }
+.compare-caption { min-height: 2.4em; color: var(--body-color); font-size: .8rem; }
+.compare-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 8px 0; gap: 1px; border: 1px solid var(--stroke); border-radius: 5px; overflow: hidden; background: var(--stroke); }
+.compare-metrics div { min-width: 0; padding: 7px 9px; background: #111c29; }
+.compare-metrics dt { color: var(--muted); font-size: .72rem; overflow-wrap: anywhere; }
+.compare-metrics dd { margin: 1px 0 0; color: var(--ink); font: 600 .86rem/1.25 ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
+.compare-provenance { min-height: 2.5em; color: var(--muted); font-size: .75rem; overflow-wrap: anywhere; }
+.compare-footer { display: flex; gap: 10px; justify-content: space-between; align-items: center; margin-top: 11px; flex-wrap: wrap; font-size: .78rem; }
+.comparison-method { margin-top: 14px; padding: 11px 15px; color: var(--muted); }
+.comparison-method p { margin-top: 8px; font-size: .82rem; max-width: 120ch; }
+#moon-globe { position: relative; }
+#globe-status { position: absolute; inset: auto 10px 55px 10px; z-index: 1; text-align: center; color: var(--ink); font-size: .78rem; pointer-events: none; }
+.globe-coordinates { position: absolute; top: 10px; left: 10px; pointer-events: none; }
+.globe-controls { position: absolute; right: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.moon-fallback { position: absolute; inset: 0; object-fit: contain; opacity: .8; }
+#moon-globe:fullscreen { background: #090f1b; }
+@media (max-width: 900px) {
+  .comparison-grid { gap: 9px; }
+  .compare-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 680px) {
+  .comparison-grid { grid-template-columns: minmax(0, 1fr); }
+  .compare-stage { height: clamp(270px, 40vh, 400px); }
+  .compare-caption, .compare-provenance { min-height: 0; }
+}
+@media (max-width: 390px) {
+  .workspace-nav { flex-wrap: wrap; }
+  .workspace-nav button { padding-inline: 8px; }
+}

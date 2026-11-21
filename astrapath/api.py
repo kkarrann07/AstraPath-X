@@ -20,6 +20,7 @@ from rasterio.errors import RasterioError
 from starlette.datastructures import UploadFile
 
 from .mission import ROBUSTNESS_TRIALS, Network, Settings, alternatives, emergency, sampled_robustness
+from .lunar import lunar_product, lunar_terrain
 from .terrain import demo_terrain, matrix_json, read_geotiff, slope_map
 from .tsokar import AOI, ImportSpec, load_window, prepare_study
 
@@ -74,6 +75,11 @@ class EmergencyRequest(MissionRequest):
 def get_terrain(terrain_id):
     if terrain_id == "demo":
         return DEMO
+    if lunar_product(terrain_id):
+        try:
+            return lunar_terrain(terrain_id)
+        except (OSError, RasterioError, ValueError) as error:
+            raise HTTPException(503, "The bundled lunar elevation grid is unavailable.") from error
     with upload_lock:
         if terrain_id not in uploads:
             raise HTTPException(404, "Terrain session expired. Upload the DEM again.")
@@ -97,6 +103,7 @@ def describe_terrain(terrain_id, terrain):
         "width": w, "height": h, "dx": terrain.dx, "dy": terrain.dy,
         "start": start, "target": target, "elevation": matrix_json(terrain.elevation),
         "min_elevation": float(np.nanmin(terrain.elevation)), "max_elevation": float(np.nanmax(terrain.elevation)),
+        "gravity": terrain.gravity, "lunar": lunar_product(terrain_id),
     }
 
 
@@ -147,6 +154,12 @@ def tsokar_import_template():
 @app.get("/api/terrain/demo")
 def demo():
     return describe_terrain("demo", DEMO)
+
+
+@app.get("/api/terrain/{terrain_id}/comparison")
+def comparison_grid(terrain_id: str):
+    grid = get_terrain(terrain_id)
+    return {**describe_terrain(terrain_id, grid), "slope": matrix_json(slope_map(grid))}
 
 
 def register_terrain(terrain):

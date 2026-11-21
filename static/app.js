@@ -177,21 +177,27 @@ function summary() {
   const percent = Math.round(battery / settings.capacity * 100);
   byId("active-terrain").textContent = terrain.name;
   byId("terrain-origin").textContent = terrain.origin;
-  const source = terrain.study ? "ladakh" : terrain.id === "demo" ? "demo" : "upload";
+  const source = terrain.lunar ? terrain.id : terrain.study ? "ladakh" : terrain.id === "demo" ? "demo" : "upload";
   byId("dataset-select").querySelector('[value="upload"]').hidden = source !== "upload";
   byId("dataset-select").value = source;
-  byId("data-status").textContent = datasetMessage || (terrain.study
+  byId("data-status").textContent = datasetMessage || (terrain.lunar
+    ? "NASA LOLA grid active. Drive and solar outputs are simulations."
+    : terrain.study
     ? (terrain.study.id === "installed" ? "Installed Tso Kar terrain active." : "Imported Tso Kar terrain active for this session.")
     : terrain.id === "demo"
       ? startupDataError || (installedStudy ? "Synthetic demo active. Installed Tso Kar terrain is available."
         : "No Tso Kar dataset installed. Synthetic demo active.")
       : "Uploaded GeoTIFF active for this session.");
   byId("terrain-detail").textContent = terrain.detail;
-  byId("map-source").textContent = terrain.study ? "TSO KAR · UPLOADED ELEVATION"
+  byId("map-source").textContent = terrain.lunar ? "MOON · NASA LOLA ELEVATION" : terrain.study ? "TSO KAR · UPLOADED ELEVATION"
     : terrain.id === "demo" ? "SYNTHETIC ELEVATION" : "UPLOADED ELEVATION";
-  byId("study-source").hidden = !terrain.study;
+  byId("study-source").hidden = !(terrain.study || terrain.lunar);
   document.querySelector('[data-layer="imagery"]').hidden = !terrain.imagery;
-  if (terrain.study) {
+  if (terrain.lunar) {
+    byId("study-provenance").textContent = terrain.lunar.provenance;
+    byId("study-manifest").href = terrain.lunar.source;
+    byId("study-manifest").textContent = "Open NASA elevation product";
+  } else if (terrain.study) {
     const products = terrain.study.dem.map(({ product_id, version, acquired }) =>
       `${product_id} · ${version} · ${acquired || "acquisition date unspecified"}`).join(" / ");
     const coverage = `${(100 * terrain.study.coverage).toFixed(1)}% study-area DEM coverage`;
@@ -199,6 +205,7 @@ function summary() {
       ? `${terrain.study.imagery.display} acquired ${terrain.study.imagery.acquired}` : "No 2025 imagery loaded";
     byId("study-provenance").textContent = `Declared CartoDEM provenance · ${products} · ${coverage} · ${image}`;
     byId("study-manifest").href = `api/tsokar/${terrain.study.id}/manifest`;
+    byId("study-manifest").textContent = "Open provenance manifest";
   }
   byId("battery-top").textContent = `${percent}%`;
   byId("battery-detail").textContent = `${battery.toFixed(1)} / ${settings.capacity} Wh`;
@@ -482,15 +489,37 @@ function setAnalysis(choice) {
   if (analysis === "battery") drawTimeline();
 }
 
+let comparison;
+
 function setView(choice) {
-  if (choice === "plan" && timer) {
+  if (choice !== "simulation" && timer) {
     halt();
-    logEvent("Simulation paused", "Planning workspace opened.");
+    logEvent("Simulation paused", "Left the simulation workspace.");
   }
   view = choice;
   document.body.dataset.view = view;
   for (const button of document.querySelectorAll("[data-view-choice]")) {
     button.setAttribute("aria-pressed", String(button.dataset.viewChoice === view));
+  }
+  byId("mission-heading").hidden = byId("mission-workspace").hidden = choice === "compare";
+  byId("comparison").hidden = choice !== "compare";
+  byId("skip-terrain").href = choice === "compare" ? "#compare-title" : "#map-title";
+  if (choice === "compare") {
+    comparison ??= import("./compare.js").then(({ initComparison }) => initComparison({
+      api, currentTerrain: () => terrain, currentStudy: () => study,
+      openISRO: () => byId("real-mode").click(),
+      openPlanner: (grid, slope) => {
+        setView("plan");
+        settings.max_slope = slope;
+        fillParameters();
+        return activateTerrain(grid);
+      },
+    })).catch(() => {
+      byId("globe-status").textContent = "Comparison could not load. Reload the dashboard and try again.";
+      comparison = undefined;
+    });
+    comparison.then((workspace) => { if (view === "compare") workspace?.open(); });
+    return;
   }
   byId("mode-description").textContent = view === "simulation"
     ? "Follow the rover, inject a fault and inspect the replan."
@@ -498,6 +527,16 @@ function setView(choice) {
   setAnalysis(view === "simulation" ? "battery" : "routes");
   renderFlight();
   renderIntelligence();
+}
+
+function activateTerrain(grid) {
+  terrain = grid;
+  datasetMessage = "";
+  resetMap(false);
+  changeLayer(terrain.imagery ? "imagery" : "terrain");
+  setPoints();
+  choosePicker(undefined);
+  return calculate();
 }
 
 for (const button of document.querySelectorAll("[data-view-choice]")) {
@@ -689,18 +728,14 @@ studyDialog.addEventListener("cancel", (event) => { if (studyBusy) event.prevent
 
 async function loadStudyWindow(automatic = false) {
   const query = automatic ? "" : `?${new URLSearchParams({ x: studyForm.elements.x.value, y: studyForm.elements.y.value })}`;
-  terrain = await api(`/api/tsokar/${study.id}/window${query}`);
-  datasetMessage = "";
-  resetMap(false);
-  if (terrain.window) {
-    studyForm.elements.x.value = terrain.window.x.toFixed(2);
-    studyForm.elements.y.value = terrain.window.y.toFixed(2);
+  const grid = await api(`/api/tsokar/${study.id}/window${query}`);
+  if (grid.window) {
+    studyForm.elements.x.value = grid.window.x.toFixed(2);
+    studyForm.elements.y.value = grid.window.y.toFixed(2);
   }
-  changeLayer(terrain.imagery ? "imagery" : "terrain");
-  setPoints();
-  choosePicker(undefined);
   studyDialog.close();
-  calculate();
+  activateTerrain(grid);
+  if (view === "compare") comparison?.then((workspace) => workspace?.open({ preferLadakh: true }));
 }
 
 async function runStudyAction(action, progress) {
@@ -842,9 +877,9 @@ function readPoints() {
 
 byId("dataset-select").addEventListener("change", async (event) => {
   const choice = event.target.value;
-  if (choice === "lunar") {
-    datasetMessage = "Lunar terrain is unavailable. A lunar CRS and a validated source are required.";
-    summary();
+  if (choice.startsWith("lunar-")) {
+    try { await activateTerrain(await api(`/api/terrain/${choice}/comparison`)); }
+    catch (error) { datasetMessage = error.message; summary(); }
   } else if (choice === "ladakh") {
     if (study?.id) {
       try { await loadStudyWindow(true); }
@@ -1104,7 +1139,7 @@ function marker(context, x, y, color, label, direction = 1, radius = 5, labelOff
 }
 
 function drawMap() {
-  if (!terrain) return;
+  if (!terrain || !map.clientWidth || !map.clientHeight) return;
   const { context, width, height } = surface(map);
   const { dx, dy } = terrain;
   const scale = Math.min(width / (terrain.width * dx), height / (terrain.height * dy)) * zoom;
@@ -1241,7 +1276,7 @@ function drawTimeline() {
     context.lineTo(right, yy);
     context.stroke();
     const d = maxDistance * part / 4;
-    const label = `${(d / 1000).toFixed(1)} km`;
+    const label = maxDistance < 1000 ? `${Math.round(d)} m` : `${(d / 1000).toFixed(1)} km`;
     context.fillText(label, Math.min(x(d), right - context.measureText(label).width), bottom + 16);
   }
   function graph(points, field, color, dashed, thickness) {

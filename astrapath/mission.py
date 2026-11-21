@@ -69,6 +69,7 @@ class Network:
         self.outgoing = {}
         self.incoming = {}
         z = terrain.elevation
+        gravity_ratio = terrain.gravity / 9.80
         h, w = z.shape
         for r, c in (np.argwhere(self.allowed).tolist() if nodes is None else nodes):
             if not self.allowed[r, c]:
@@ -86,7 +87,7 @@ class Network:
                 grade = float(z[other] - z[node]) / distance
                 seconds = distance / settings.speed * (1 + 0.7 * abs(grade))
                 gross = settings.traction * distance / 1000 * (
-                    1 + 3.5 * max(grade, 0) + 0.6 * max(-grade, 0)
+                    1 + gravity_ratio * (3.5 * max(grade, 0) + 0.6 * max(-grade, 0))
                 ) + settings.hotel * seconds / 3600
                 lit = bool(self.lit[node] and self.lit[other])
                 solar = settings.solar_rate * seconds / 3600 if lit and settings.solar else 0

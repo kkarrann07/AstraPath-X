@@ -1,0 +1,42 @@
+{
+  "lunar-site04": {
+    "name": "Shackleton rim",
+    "lat": -89.80826259,
+    "lon": -146.75407691,
+    "file": "site04.tif",
+    "source": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site04/Site04_final_adj_5mpp_surf.tif",
+    "catalog": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/",
+    "reference": "Moon mean Earth/polar axis (MOON_ME), DE421; south polar stereographic; 1,737,400 m reference sphere",
+    "acquisition": "Multi-pass LRO LOLA observations; catalogue does not specify a single acquisition date.",
+    "version": "Barker et al. (2021), final adjusted/interpolated surface",
+    "provenance": "NASA GSFC / LRO LOLA Site04 \u00b7 Barker et al. (2021) \u00b7 Interpolated 5 m grid; no single acquisition date.",
+    "window": {
+      "column": 1110,
+      "row": 1130,
+      "width": 105,
+      "height": 85
+    },
+    "source_sha256": "38ff70dbdf2f066c2cfa94a646c3a59d653ce7f6b4528b15fc1b43ee397ce758",
+    "crop_sha256": "51fa4128018764f1697c76f03136a15ad57b5e6c2450ace8e18e388c210cd98a"
+  },
+  "lunar-site01": {
+    "name": "Connecting ridge",
+    "lat": -89.45774935,
+    "lon": -133.95277442,
+    "file": "site01.tif",
+    "source": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site01/Site01_final_adj_5mpp_surf.tif",
+    "catalog": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/",
+    "reference": "Moon mean Earth/polar axis (MOON_ME), DE421; south polar stereographic; 1,737,400 m reference sphere",
+    "acquisition": "Multi-pass LRO LOLA observations; catalogue does not specify a single acquisition date.",
+    "version": "Barker et al. (2021), final adjusted/interpolated surface",
+    "provenance": "NASA GSFC / LRO LOLA Site01 \u00b7 Barker et al. (2021) \u00b7 Interpolated 5 m grid; no single acquisition date.",
+    "window": {
+      "column": 1380,
+      "row": 1440,
+      "width": 105,
+      "height": 85
+    },
+    "source_sha256": "3ba7b97cb00a2bcf21189c3aeb535f65afc21207154ab9f0d43c5bdc1f7e747e",
+    "crop_sha256": "73a90d6633c42123b8cd7bb71051a23217bfa21a4ca92c87b1069d9f70e6c9d5"
+  }
+}

@@ -7,34 +7,36 @@
   <meta name="description" content="Plan and simulate rover missions using terrain, power and return constraints.">
   <title>AstraPath-X | Rover Mission Control</title>
   <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/compare.css">
   <script type="module" src="assets/app.js"></script>
 </head>
 <body data-view="plan">
-  <a class="skip-link" href="#map-title">Skip to terrain</a>
+  <a class="skip-link" id="skip-terrain" href="#map-title">Skip to terrain</a>
   <header class="topbar">
     <div class="topbar-inner">
       <div class="brand"><span class="brand-icon" aria-hidden="true"><i></i></span><div><strong>AstraPath<span>-X</span></strong><small>Rover Survival Intelligence</small></div></div>
       <nav class="workspace-nav segments" aria-label="Mission workspace">
         <button type="button" data-view-choice="plan" aria-pressed="true">Plan mission</button>
         <button type="button" data-view-choice="simulation" aria-pressed="false">Simulate</button>
+        <button type="button" data-view-choice="compare" aria-pressed="false">Compare terrains</button>
       </nav>
       <div class="header-actions"><span class="event">ASTRA 2026</span><button class="button secondary" id="demo" type="button">Judge challenge</button></div>
     </div>
   </header>
   <main class="command">
-    <div class="mission-heading">
+    <div class="mission-heading" id="mission-heading">
       <div><h1>Rover Mission Control</h1><p id="mode-description">Plan a traverse and check its modeled energy and return margins.</p></div>
       <div class="mission-state"><span class="status-light" aria-hidden="true"></span><strong id="status-top" data-status="PLANNING">PLANNING</strong><span id="status-detail">Loading terrain</span></div>
     </div>
 
-    <div class="workspace">
+    <div class="workspace" id="mission-workspace">
       <aside class="panel configuration" aria-labelledby="config-title">
         <div class="panel-heading"><h2 id="config-title">Mission configuration</h2><button class="text-button" id="config-toggle" type="button" aria-expanded="false" aria-controls="config-body">Show settings</button></div>
         <div id="config-body">
           <section class="config-section">
             <h3>Terrain source</h3>
             <label class="sr-only" for="dataset-select">Terrain dataset</label>
-            <select id="dataset-select"><option value="demo">Simulation</option><option value="ladakh">Ladakh · Tso Kar</option><option value="lunar">Lunar</option><option value="upload" hidden>Uploaded GeoTIFF</option></select>
+            <select id="dataset-select"><option value="demo">Simulation</option><option value="ladakh">Ladakh · Tso Kar</option><option value="lunar-site04">Moon · Shackleton rim</option><option value="lunar-site01">Moon · Connecting ridge</option><option value="upload" hidden>Uploaded GeoTIFF</option></select>
             <div class="source-detail">
               <strong id="active-terrain">Loading terrain</strong>
               <span id="terrain-origin"></span>
@@ -146,6 +148,68 @@
         </section>
       </aside>
     </div>
+    <section id="comparison" class="comparison" aria-labelledby="compare-title" hidden>
+      <div class="mission-heading compare-heading">
+        <div><h1 id="compare-title" tabindex="-1">Moon to Ladakh</h1><p>Explore lunar terrain and an Earth analogue before planning a traverse.</p></div>
+        <label class="compare-threshold">Slope screening <select id="compare-threshold"><option value="10">Above 10°</option><option value="19" selected>Above 19°</option><option value="30">Above 30°</option></select></label>
+      </div>
+      <div class="comparison-grid">
+        <article class="panel compare-panel earth-panel" id="compare-earth" aria-labelledby="earth-title">
+          <div class="compare-panel-header">
+            <div><span class="body-label">EARTH <span>9.80 m/s²</span></span><h2 id="earth-title">Ladakh</h2></div>
+            <label class="sr-only" for="earth-source">Earth dataset</label>
+            <select id="earth-source"><option value="ladakh">Tso Kar · CartoDEM</option><option value="demo">Kestrel Basin · Synthetic</option><option value="upload" hidden>Uploaded Earth DEM</option></select>
+          </div>
+          <div class="compare-tools"><div class="segments compare-layers" aria-label="Earth layers">
+            <button type="button" data-terrain-layer="elevation" aria-pressed="true">Elevation</button><button type="button" data-terrain-layer="slope" aria-pressed="false">Slope</button><button type="button" data-terrain-layer="hazard" aria-pressed="false">Hazards</button><button type="button" data-terrain-layer="imagery" aria-pressed="false">Imagery</button>
+          </div><button type="button" class="text-button" data-reset-terrain>Reset view</button></div>
+          <div class="compare-stage">
+            <canvas class="compare-raster" tabindex="0" role="img" aria-label="Earth elevation grid. Use arrows to pan, plus or minus to zoom, and Home to reset."></canvas>
+            <div class="compare-empty" data-empty hidden><strong>Tso Kar data required</strong><p>Import CartoDEM or choose Kestrel Basin to demonstrate the Earth workflow.</p><button type="button" class="button secondary" data-open-isro>Import ISRO data</button></div>
+            <span class="map-chip compare-badge" data-dataset-badge hidden></span><span class="map-chip compare-palette" data-palette hidden></span>
+            <span class="map-chip compare-inspect" data-inspect hidden></span><span class="map-chip compare-scale" data-scale hidden></span>
+          </div>
+          <div class="compare-meta">
+            <p class="compare-caption" data-status role="status">Checking Earth datasets…</p>
+            <dl class="compare-metrics" data-metrics></dl>
+            <p class="compare-provenance" data-provenance></p>
+            <div class="compare-footer"><button type="button" class="button secondary" data-open-planner disabled>Plan Earth traverse</button><button type="button" class="text-button" data-open-isro>ISRO datasets</button></div>
+          </div>
+        </article>
+        <article class="panel compare-panel lunar-panel" id="compare-moon" aria-labelledby="moon-title">
+          <div class="compare-panel-header">
+            <div><span class="body-label">MOON <span>1.62 m/s²</span></span><h2 id="moon-title">Shackleton rim</h2></div>
+            <label class="sr-only" for="lunar-region">Lunar region</label>
+            <select id="lunar-region"><option value="lunar-site04">Shackleton rim · LOLA</option><option value="lunar-site01">Connecting ridge · LOLA</option><option value="apollo11">Apollo 11 · Mare Tranquillitatis</option><option value="apollo15">Apollo 15 · Hadley Rille</option></select>
+          </div>
+          <div class="compare-tools"><div class="segments compare-layers" aria-label="Lunar layers">
+            <button type="button" data-terrain-layer="globe" aria-pressed="true">3D globe</button><button type="button" data-terrain-layer="elevation" aria-pressed="false">Elevation</button><button type="button" data-terrain-layer="slope" aria-pressed="false">Slope</button><button type="button" data-terrain-layer="hazard" aria-pressed="false">Hazards</button>
+          </div><button type="button" class="text-button" data-reset-terrain>Reset view</button></div>
+          <div class="compare-stage lunar-stage">
+            <canvas class="compare-raster" tabindex="0" role="img" aria-label="Lunar elevation grid. Use arrows to pan, plus or minus to zoom, and Home to reset." hidden></canvas>
+            <div id="moon-globe" aria-label="Interactive lunar globe">
+              <p id="globe-status" role="status">Loading NASA lunar imagery…</p>
+              <div class="globe-coordinates map-chip" id="globe-coordinates"></div>
+              <div class="globe-controls"><button type="button" id="globe-rotation" class="button secondary mini" aria-pressed="false">Pause rotation</button><button type="button" id="globe-fullscreen" class="button secondary mini" aria-pressed="false">Fullscreen</button></div>
+            </div>
+            <div class="compare-empty" data-empty hidden><strong>Regional elevation unavailable</strong><p>Choose the globe to explore this site, or select a NASA LOLA survey region.</p></div>
+            <span class="map-chip compare-badge" data-dataset-badge hidden></span><span class="map-chip compare-palette" data-palette hidden></span>
+            <span class="map-chip compare-inspect" data-inspect hidden></span><span class="map-chip compare-scale" data-scale hidden></span>
+          </div>
+          <div class="compare-meta">
+            <p class="compare-caption" data-status role="status">Loading lunar survey data…</p>
+            <dl class="compare-metrics" data-metrics></dl>
+            <p class="compare-provenance" data-provenance></p>
+            <div class="compare-footer"><button type="button" class="button primary" data-open-planner disabled>Plan lunar traverse</button><a href="https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/" target="_blank" rel="noopener">NASA LOLA products</a></div>
+          </div>
+        </article>
+      </div>
+      <details class="panel comparison-method">
+        <summary>Comparison assumptions</summary>
+        <p>Ladakh is a terrain analogue. Grid posting, sensing method, gravity, regolith and lighting differ. Slope is the steepest adjacent-cell grade over measured grid spacing. Use the same threshold to screen both DEMs. Native resolutions are preserved, so slope statistics can change with the scale of the DEM.</p>
+        <p>LOLA elevations are relative to a lunar reference sphere. Earth heights retain their source datum. Compare local relief and slopes. A slope screen cannot detect sub-pixel obstacles, soft ground or rover-scale hazards. Rover dynamics, power and sunlight are simulations. Lunar routes adjust the slope-dependent drive term for gravity and use a user-set sun relative to grid north.</p>
+      </details>
+    </section>
     <footer><span>AstraPath-X · ASTRA 2026</span><span>Energy, illumination, uncertainty and recommendations are modeled.</span></footer>
   </main>
 

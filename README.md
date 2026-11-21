@@ -33,9 +33,18 @@ AstraPath-X plans and stress-tests rover traverses on an elevation grid. Compare
 - **Terrain view** supports elevation, slope, hazards, simulated sunlight and registered imagery when available. Drag to pan, use the wheel or zoom controls, and hover over a route to inspect its metrics. With the map focused, use arrow keys to pan, **+** or **−** to zoom, and **Home** to reset. For keyboard waypoint placement, select a waypoint, center the map and press **Enter**. You can also enter row and column directly.
 - **Mission intelligence** shows the gross energy requirement, expected arrival charge, modeled return threshold, robustness and recommendation for the selected route. The return threshold includes the mission floor. The amber dashed map sections mark modeled return deficits.
 - **Simulate** exposes flight controls and a time-stamped event timeline. The battery graph shows projected charge, gross energy used, modeled solar gain and the return threshold. Solar, battery and recommendation outputs are model results.
-- **Lunar** is listed as unavailable. The current terrain pipeline supports Earth-referenced DEMs, and no validated lunar CRS or dataset is bundled.
+- **Compare terrains** pairs an Earth grid with an interactive NASA lunar globe or a regional LOLA elevation, slope, or hazard layer. Select Shackleton rim or Connecting ridge to plan a traverse on the same grid in the rover simulator. The Apollo views provide imagery and coordinates with planning disabled because those regional grids are absent.
 
 [Desktop mission plan](docs/screenshots/mission-control-desktop.jpg) · [Emergency replan](docs/screenshots/mission-control-simulation.jpg) · [Tablet](docs/screenshots/mission-control-tablet.jpg) · [Mobile](docs/screenshots/mission-control-mobile.jpg)
+
+## Moon-to-Ladakh comparison
+
+1. Open **Compare terrains**. When a Tso Kar study is installed, the Earth panel uses its CartoDEM window. Otherwise it starts on **Kestrel Basin · Synthetic** and identifies the missing CartoDEM. Select **ISRO datasets** to import authorized files. The Earth **Imagery** layer becomes available when the study has registered imagery.
+2. Drag the 3D Moon to rotate it, scroll to zoom, and choose a region to shift the camera. A purple marker identifies the selected site. **Pause rotation**, **Reset view**, and **Fullscreen** control the globe. With the canvas focused, use the arrow keys, **+**, **−**, and **Home**. WebGL 2 enables the globe. Other browsers show the NASA flat mosaic and retain regional DEM layers.
+3. Choose **Elevation**, **Slope**, or **Hazards** and use the shared **Slope screening** threshold. Pan and zoom either grid, hover to inspect elevation and slope, or focus a grid and press **Enter** to inspect its center. Each panel keeps the source grid spacing and displays its own physical scale, relief and slope summary.
+4. Select **Plan Earth traverse** or **Plan lunar traverse**. The planner loads the displayed dataset and uses the selected slope threshold. Use **Simulate** for battery, solar, emergency replanning and Point of No Return. The Earth and lunar windows have different grid postings, datums, surface properties and gravity. Their slope screens estimate broad terrain constraints and cannot resolve rover-scale obstacles.
+
+[Comparison screenshot](docs/screenshots/moon-to-ladakh.jpg) · [Lunar slope analysis](docs/screenshots/lunar-slope-comparison.jpg) · [Lunar route planning](docs/screenshots/lunar-planning.jpg) · [Lunar data and attribution](docs/LUNAR.md)
 
 ## Elevation data
 

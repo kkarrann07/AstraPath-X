@@ -18,6 +18,7 @@ class Terrain:
     name: str
     origin: str
     detail: str
+    gravity: float = 9.80
 
 
 def demo_terrain():

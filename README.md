@@ -54,6 +54,12 @@ AstraPath-X plans and stress-tests rover traverses on an elevation grid. Compare
 - The upload pipeline was verified with generated geographic and projected GeoTIFF files. Authentic Tso Kar data is obtained separately through the official portal sign-in and download flow. [Ladakh CartoDEM download and provenance](docs/DATA.md)
 - See [the mission model](docs/MODEL.md) for routing costs, energy and return calculations, and their limits.
 
+## Deploy to Vercel
+
+Import this GitHub repository in your Vercel account. Use the repository root, the **FastAPI** framework preset, and the default build settings. Vercel reads the app entry point from `pyproject.toml`, the Python version from `.python-version`, and the dependencies from `requirements.txt`. Verify `/health` and open **Compare terrains** to check the globe and lunar planner after deployment.
+
+The bundled lunar data works without credentials. Vercel Functions cap request bodies at 4.5 MB by default. Use the Windows launcher for full-size CartoDEM imports and persistent local studies. [FastAPI on Vercel](https://vercel.com/docs/frameworks/backend/fastapi) · [Function limits](https://vercel.com/docs/functions/limitations)
+
 ## Deploy to Streamlit Community Cloud
 
 1. Publish these project files in the GitHub branch you want to deploy. Local downloads, saved studies, and Python environments are excluded by `.gitignore`.

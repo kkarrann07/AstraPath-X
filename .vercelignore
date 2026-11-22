@@ -1,0 +1,10 @@
+.deps/
+.venv/
+.pytest_cache/
+.streamlit/
+cloud/
+data/
+docs/screenshots/
+tests/
+.astrapath-local.json
+.astrapath-launch.lock

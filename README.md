@@ -56,7 +56,7 @@ AstraPath-X plans and stress-tests rover traverses on an elevation grid. Compare
 
 ## Deploy to Vercel
 
-Import this GitHub repository in your Vercel account. Use the repository root, the **FastAPI** framework preset, and the default build settings. Vercel reads the app entry point from `pyproject.toml`, the Python version from `.python-version`, and the dependencies from `requirements.txt`. Verify `/health` and open **Compare terrains** to check the globe and lunar planner after deployment.
+Import this GitHub repository in your Vercel account. Use the repository root, the **FastAPI** framework preset, and the default build settings. Vercel reads the app entry point and runtime dependencies from `pyproject.toml`. Keep its dependency list in sync with `requirements.txt`, which the Windows launcher uses. Verify `/health` and open **Compare terrains** to check the globe and lunar planner after deployment.
 
 The bundled lunar data works without credentials. Vercel Functions cap request bodies at 4.5 MB by default. Use the Windows launcher for full-size CartoDEM imports and persistent local studies. [FastAPI on Vercel](https://vercel.com/docs/frameworks/backend/fastapi) · [Function limits](https://vercel.com/docs/functions/limitations)
 

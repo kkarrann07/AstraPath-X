@@ -2,6 +2,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 .vercel/
+astrapath/_vercel_lib/
 .deps/
 *.pyc
 .env

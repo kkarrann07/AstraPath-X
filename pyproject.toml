@@ -11,4 +11,7 @@ dependencies = [
 ]
 
 [tool.vercel]
-entrypoint = "astrapath.api:app"
+entrypoint = "astrapath.vercel_app:app"
+
+[tool.vercel.scripts]
+build = "python astrapath/vercel_build.py"
